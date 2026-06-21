@@ -1,0 +1,38 @@
+/* ============================================================
+   TYPOGRAPHY
+   ============================================================ */
+
+:root {
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system,
+               'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* type scale (px) — 1.20 modular-ish, app-density */
+  --text-xs:   12px;
+  --text-sm:   13px;
+  --text-base: 14px;   /* default UI body */
+  --text-md:   15px;
+  --text-lg:   17px;
+  --text-xl:   20px;
+  --text-2xl:  24px;
+  --text-3xl:  30px;
+  --text-4xl:  38px;
+
+  /* weights */
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  /* line heights */
+  --leading-tight:  1.2;
+  --leading-snug:   1.35;
+  --leading-normal: 1.5;
+  --leading-relaxed:1.65;
+
+  /* letter spacing */
+  --tracking-tight:  -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide:   0.04em;
+  --tracking-caps:   0.06em;  /* eyebrow / overline labels */
+}
