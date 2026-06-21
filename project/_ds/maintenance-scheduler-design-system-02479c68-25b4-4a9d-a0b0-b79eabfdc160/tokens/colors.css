@@ -1,0 +1,102 @@
+/* ============================================================
+   COLORS — Maintenance Scheduler
+   Base palette + semantic aliases.
+   ============================================================ */
+
+:root {
+  /* --- Brand: forest green --- */
+  --green-50:  #EAF3EE;
+  --green-100: #D3E6DC;
+  --green-200: #A9CDBB;
+  --green-300: #74AC92;
+  --green-400: #468268;
+  --green-500: #2D6A4F;  /* primary accent */
+  --green-600: #245A42;
+  --green-700: #1B4332;
+  --green-800: #123226;
+
+  /* --- Neutrals (warm-cool gray) --- */
+  --white:    #FFFFFF;
+  --gray-50:  #F5F6F6;   /* page background */
+  --gray-100: #EEF0EF;
+  --gray-150: #E6E9E8;
+  --gray-200: #DCE0DF;   /* default borders */
+  --gray-300: #C5CBC9;
+  --gray-400: #9BA3A0;
+  --gray-500: #6E7773;   /* muted / secondary text */
+  --gray-600: #525B57;
+  --gray-700: #3A423E;
+  --gray-800: #262C29;
+  --gray-900: #181C1A;   /* headings */
+
+  /* --- Warning: amber/orange (boiler, due-soon) --- */
+  --amber-50:  #FDF2E4;
+  --amber-100: #FAE2C4;
+  --amber-400: #E8852B;
+  --amber-500: #D2731C;
+  --amber-700: #8F4E12;
+
+  /* --- Danger: red/salmon (smoke alarm, overdue) --- */
+  --red-50:  #FCEAEA;
+  --red-100: #F9D6D7;
+  --red-300: #F08A8D;
+  --red-400: #E5575C;
+  --red-500: #D23A40;
+  --red-700: #97282D;
+
+  /* --- Info: muted blue (optional accents) --- */
+  --blue-50:  #E9F0F7;
+  --blue-400: #3E78B8;
+  --blue-600: #2C5C92;
+
+  /* ============================================================
+     SEMANTIC ALIASES
+     ============================================================ */
+
+  /* surfaces */
+  --surface-page:    var(--gray-50);
+  --surface-card:    var(--white);
+  --surface-sunken:  var(--gray-100);
+  --surface-hover:   var(--gray-100);
+  --surface-active-nav: var(--green-50);
+
+  /* text */
+  --text-heading:   var(--gray-900);
+  --text-body:      var(--gray-700);
+  --text-muted:     var(--gray-500);
+  --text-faint:     var(--gray-400);
+  --text-on-brand:  var(--white);
+  --text-link:      var(--green-600);
+
+  /* brand / actions */
+  --brand:          var(--green-500);
+  --brand-hover:    var(--green-600);
+  --brand-active:   var(--green-700);
+  --brand-tint:     var(--green-50);
+  --brand-on-tint:  var(--green-700);
+
+  /* borders */
+  --border-subtle:  var(--gray-150);
+  --border-default: var(--gray-200);
+  --border-strong:  var(--gray-300);
+  --border-focus:   var(--green-400);
+
+  /* status — warning */
+  --warn-fg:   var(--amber-700);
+  --warn-bg:   var(--amber-50);
+  --warn-solid:var(--amber-400);
+
+  /* status — danger / overdue */
+  --danger-fg:    var(--red-700);
+  --danger-bg:    var(--red-50);
+  --danger-solid: var(--red-500);
+  --danger-soft:  var(--red-300);
+
+  /* status — success / done */
+  --success-fg:   var(--green-700);
+  --success-bg:   var(--green-50);
+  --success-solid:var(--green-500);
+
+  /* focus ring */
+  --ring: 0 0 0 3px rgba(45, 106, 79, 0.22);
+}

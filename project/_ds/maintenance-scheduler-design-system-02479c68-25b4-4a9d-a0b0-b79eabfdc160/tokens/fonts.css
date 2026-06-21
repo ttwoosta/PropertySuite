@@ -1,0 +1,9 @@
+/* ============================================================
+   FONTS
+   Substitution note: no brand font files were provided, so the
+   design system uses "Plus Jakarta Sans" (a clean, friendly
+   geometric grotesk) for UI/headings and the system mono stack
+   for tabular/code. Replace with the real brand font when available.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
