@@ -688,7 +688,6 @@ function Sidebar({
               label={vw.label}
               active={view === vw.id}
               onClick={() => pick(onView, vw.id)}
-              style={{ padding: '16px 12px' }}
             />
           ))}
         </div>

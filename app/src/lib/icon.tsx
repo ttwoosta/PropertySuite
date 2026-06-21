@@ -19,10 +19,14 @@ const registry = Lucide as unknown as Record<
   React.ComponentType<LucideProps>
 >;
 
-export function LucideIcon({ name, ...rest }: { name: string } & LucideProps) {
+export function LucideIcon({ name, style, ...rest }: { name: string } & LucideProps) {
   const Cmp = registry[toPascal(name)] ?? registry.Square;
-  // class "lucide" lets ps-app.css size the svg to its wrapper, matching the prototype.
-  return <Cmp {...rest} />;
+  // Fill the (sized) wrapper. This replaces the prototype's global
+  // `svg.lucide { width:100%; height:100% }` CSS rule with a React-owned style,
+  // so icon sizing doesn't depend on that stylesheet rule existing.
+  return (
+    <Cmp {...rest} style={{ width: '100%', height: '100%', display: 'block', ...style }} />
+  );
 }
 
 /** Drop-in for the prototype's `di('icon-name')` — returns an icon node that fills its wrapper. */

@@ -1,7 +1,8 @@
 // TenantBridge — Thread + AI Assistant views (port of tenant-thread.jsx).
-// The AI Assistant uses Firebase AI Logic (Gemini) for live drafting.
+// Visuals follow the latest Claude Design canvas (spinning orb, channel chip-row,
+// thread header card). The AI Assistant uses Firebase AI Logic (Gemini).
 import { useEffect, useRef, useState } from 'react';
-import { Badge, Button, Card, IconButton } from '../../ds-vendor/components';
+import { Avatar, Badge, Button, Card, IconButton } from '../../ds-vendor/components';
 import { EmptyState, Icon, Segmented, di } from '../../components/ui';
 import { firebaseConfigured, getGeminiModel } from '../../lib/firebase';
 import {
@@ -28,11 +29,29 @@ export function AiOrb({ size = 18 }: { size?: number }) {
         height: size,
         alignItems: 'center',
         justifyContent: 'center',
-        color: 'var(--brand)',
-        flex: 'none',
+        borderRadius: '50%',
+        background:
+          'conic-gradient(from 0deg, var(--green-500), var(--blue-400), var(--amber-400), var(--green-500))',
+        animation: 'ai-spin 4s linear infinite',
+        boxShadow: '0 0 10px color-mix(in srgb, var(--brand) 40%, transparent)',
       }}
     >
-      {di('sparkle')}
+      <span
+        style={{
+          width: size - 6,
+          height: size - 6,
+          borderRadius: '50%',
+          background: 'var(--surface-card)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--brand)',
+        }}
+      >
+        <span style={{ display: 'inline-flex', width: size - 12, height: size - 12 }}>
+          {di('sparkles')}
+        </span>
+      </span>
     </span>
   );
 }
@@ -52,7 +71,6 @@ function Composer({
   placeholder?: string;
 }) {
   const [text, setText] = useState('');
-  const [chanOpen, setChanOpen] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     if (ref.current) {
@@ -77,11 +95,9 @@ function Composer({
     { id: 'email', label: 'Email', icon: 'mail' },
     { id: 'note', label: 'Note', icon: 'sticky-note' },
   ];
-  const cur = CHAN.find((c) => c.id === channel) || CHAN[0];
 
   return (
     <div
-      className="ps-composer"
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -93,92 +109,38 @@ function Composer({
         boxShadow: 'var(--shadow-sm)',
       }}
     >
+      {channel != null && (
+        <div style={{ display: 'flex', gap: 6 }}>
+          {CHAN.map((c) => {
+            const on = channel === c.id;
+            return (
+              <button
+                key={c.id}
+                onClick={() => onChannel?.(c.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '5px 11px',
+                  borderRadius: 'var(--radius-pill)',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  border: '1px solid ' + (on ? 'var(--brand)' : 'var(--border-default)'),
+                  background: on ? 'var(--brand-tint)' : 'var(--surface-card)',
+                  color: on ? 'var(--brand-on-tint)' : 'var(--text-muted)',
+                }}
+              >
+                <span style={{ display: 'inline-flex', width: 13, height: 13 }}>
+                  {di(c.icon)}
+                </span>
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
-        {channel != null && (
-          <div style={{ position: 'relative', flex: 'none' }}>
-            {chanOpen && (
-              <>
-                <div
-                  onClick={() => setChanOpen(false)}
-                  style={{ position: 'fixed', inset: 0, zIndex: 20 }}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: 'calc(100% + 8px)',
-                    left: 0,
-                    zIndex: 21,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    minWidth: 150,
-                    padding: 5,
-                    gap: 2,
-                    background: 'var(--surface-card)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: 'var(--radius-md)',
-                    boxShadow: 'var(--shadow-md)',
-                  }}
-                >
-                  {CHAN.map((c) => {
-                    const on = channel === c.id;
-                    return (
-                      <button
-                        key={c.id}
-                        onClick={() => {
-                          onChannel?.(c.id);
-                          setChanOpen(false);
-                        }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 9,
-                          padding: '8px 10px',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: 'var(--text-sm)',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          border: 'none',
-                          textAlign: 'left',
-                          background: on ? 'var(--brand-tint)' : 'transparent',
-                          color: on ? 'var(--brand-on-tint)' : 'var(--text-heading)',
-                        }}
-                      >
-                        <span style={{ display: 'inline-flex', width: 15, height: 15 }}>
-                          {di(c.icon)}
-                        </span>
-                        {c.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-            <button
-              onClick={() => setChanOpen((o) => !o)}
-              aria-label={'Channel: ' + cur.label}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                height: 38,
-                padding: '0 11px',
-                borderRadius: 'var(--radius-md)',
-                fontSize: 'var(--text-xs)',
-                fontWeight: 600,
-                cursor: 'pointer',
-                border: '1px solid ' + (chanOpen ? 'var(--brand)' : 'var(--border-default)'),
-                background: chanOpen ? 'var(--brand-tint)' : 'var(--surface-card)',
-                color: chanOpen ? 'var(--brand-on-tint)' : 'var(--text-muted)',
-              }}
-            >
-              <span style={{ display: 'inline-flex', width: 14, height: 14 }}>{di(cur.icon)}</span>
-              {cur.label}
-              <span style={{ display: 'inline-flex', width: 13, height: 13, marginLeft: -1 }}>
-                {di('chevron-down')}
-              </span>
-            </button>
-          </div>
-        )}
         <textarea
           ref={ref}
           value={text}
@@ -198,7 +160,6 @@ function Composer({
             minHeight: 22,
             maxHeight: 180,
             lineHeight: 1.45,
-            alignSelf: 'center',
           }}
         />
         <Button variant="primary" size="md" disabled={!text.trim() || disabled} onClick={send}>
@@ -241,6 +202,68 @@ export function ThreadView({
       className="ps-fade"
       style={{ display: 'flex', flexDirection: 'column', gap: 16, height: '100%' }}
     >
+      {/* header card */}
+      <Card>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <Avatar name={tenant.name} size="lg" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span
+                style={{
+                  fontSize: 'var(--text-xl)',
+                  fontWeight: 700,
+                  letterSpacing: '-0.015em',
+                  color: 'var(--text-heading)',
+                }}
+              >
+                {tenant.name}
+              </span>
+              <Badge tone="success" size="sm">
+                Occupied
+              </Badge>
+            </div>
+            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+              {tenant.unit} · 14 Elm Road
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button
+              variant="secondary"
+              size="sm"
+              leadingIcon={di('message-square')}
+              onClick={() => {
+                setSub('messages');
+                setChannel('sms');
+              }}
+            >
+              Text
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              leadingIcon={di('mail')}
+              onClick={() => {
+                setSub('messages');
+                setChannel('email');
+              }}
+            >
+              Email
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              leadingIcon={di('sticky-note')}
+              onClick={() => {
+                setSub('messages');
+                setChannel('note');
+              }}
+            >
+              Note
+            </Button>
+          </div>
+        </div>
+      </Card>
+
       <Segmented ariaLabel="Thread sections" value={sub} onChange={setSub} options={tabs} />
 
       {sub === 'messages' && (
@@ -370,12 +393,11 @@ export function ThreadView({
                       fontSize: 'var(--text-xs)',
                       color: 'var(--text-muted)',
                       fontWeight: 600,
-                      padding: '0px 0px 5px',
                     }}
                   >
                     {r.l}
                   </div>
-                  <div style={{ fontSize: 'var(--text-base)', color: 'var(--text-heading)' }}>
+                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-heading)' }}>
                     {r.v}
                   </div>
                 </div>
@@ -399,12 +421,12 @@ export function ThreadView({
                   <span
                     style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--brand)' }}
                   />
-                  <span
-                    style={{ flex: 1, fontSize: 'var(--text-base)', color: 'var(--text-body)' }}
-                  >
+                  <span style={{ flex: 1, fontSize: 'var(--text-sm)', color: 'var(--text-body)' }}>
                     {h.label}
                   </span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{h.when}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                    {h.when}
+                  </span>
                 </div>
               ))}
             </div>
@@ -438,7 +460,7 @@ export function ThreadView({
                 minHeight: 100,
                 padding: 10,
                 fontFamily: 'var(--font-sans)',
-                fontSize: 'var(--text-base)',
+                fontSize: 'var(--text-sm)',
                 background: 'var(--surface-sunken)',
                 border: '1px solid var(--border-default)',
                 borderRadius: 'var(--radius-md)',
@@ -504,7 +526,7 @@ function Bubble({ m }: { m: Message }) {
           background: me ? 'var(--brand)' : 'var(--surface-card)',
           color: me ? 'var(--text-on-brand)' : 'var(--text-heading)',
           border: me ? 'none' : '1px solid var(--border-default)',
-          fontSize: 'var(--text-base)',
+          fontSize: 'var(--text-sm)',
           lineHeight: 1.5,
           whiteSpace: 'pre-wrap',
         }}
@@ -573,7 +595,7 @@ function SuggestionCard({
             <AiOrb size={16} />
             <span
               style={{
-                fontSize: 'var(--text-base)',
+                fontSize: 'var(--text-sm)',
                 fontWeight: 700,
                 color: 'var(--text-heading)',
               }}
@@ -603,7 +625,7 @@ function SuggestionCard({
             minHeight: 100,
             padding: 11,
             fontFamily: 'var(--font-sans)',
-            fontSize: 'var(--text-base)',
+            fontSize: 'var(--text-sm)',
             background: 'var(--surface-card)',
             border: '1px solid var(--border-focus)',
             borderRadius: 'var(--radius-md)',
@@ -620,7 +642,7 @@ function SuggestionCard({
             padding: 12,
             background: 'var(--surface-sunken)',
             borderRadius: 'var(--radius-md)',
-            fontSize: 'var(--text-base)',
+            fontSize: 'var(--text-sm)',
             color: 'var(--text-body)',
             lineHeight: 1.55,
             whiteSpace: 'pre-wrap',
@@ -742,7 +764,7 @@ export function AIAssistant() {
         {msgs.map((m, i) =>
           m.role === 'assistant' ? (
             <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              <AiOrb size={20} />
+              <AiOrb size={26} />
               <div
                 style={{
                   flex: 1,
@@ -751,10 +773,10 @@ export function AIAssistant() {
                   background: 'var(--surface-card)',
                   border: '1px solid var(--border-default)',
                   borderRadius: 'var(--radius-md)',
+                  fontSize: 'var(--text-sm)',
                   color: 'var(--text-body)',
                   lineHeight: 1.6,
                   whiteSpace: 'pre-wrap',
-                  fontSize: '14px',
                 }}
               >
                 {m.content}
@@ -781,7 +803,7 @@ export function AIAssistant() {
         )}
         {busy && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-            <AiOrb size={20} />
+            <AiOrb size={26} />
             <div
               style={{
                 padding: '13px 16px',
