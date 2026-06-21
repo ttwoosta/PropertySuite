@@ -1,0 +1,28 @@
+/* ============================================================
+   RADIUS, SHADOWS, MOTION
+   ============================================================ */
+
+:root {
+  /* corner radii — 8px is the workhorse */
+  --radius-xs:   4px;
+  --radius-sm:   6px;
+  --radius-md:   8px;    /* default: cards, inputs, buttons */
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-pill: 999px;  /* badges, status pills */
+  --radius-full: 50%;
+
+  /* shadows — soft, low-contrast (light UI) */
+  --shadow-xs: 0 1px 2px rgba(24, 28, 26, 0.05);
+  --shadow-sm: 0 1px 2px rgba(24, 28, 26, 0.06), 0 1px 3px rgba(24, 28, 26, 0.04);
+  --shadow-md: 0 2px 4px rgba(24, 28, 26, 0.05), 0 4px 12px rgba(24, 28, 26, 0.06);
+  --shadow-lg: 0 8px 24px rgba(24, 28, 26, 0.10), 0 2px 6px rgba(24, 28, 26, 0.06);
+  --shadow-pop: 0 12px 32px rgba(24, 28, 26, 0.14);
+
+  /* motion */
+  --ease-out:   cubic-bezier(0.22, 1, 0.36, 1);   /* @kind other */
+  --ease-in-out:cubic-bezier(0.65, 0, 0.35, 1);   /* @kind other */
+  --dur-fast:   120ms;   /* @kind other */
+  --dur-base:   180ms;   /* @kind other */
+  --dur-slow:   260ms;   /* @kind other */
+}
