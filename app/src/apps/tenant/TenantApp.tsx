@@ -400,22 +400,10 @@ function TenantInner() {
       <Link
         to="/profile"
         title="Profile"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '5px 10px 5px 5px',
-          background: 'transparent',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-pill)',
-          cursor: 'pointer',
-          textDecoration: 'none',
-        }}
+        aria-label="Profile"
+        style={{ display: 'flex', background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: '50%', textDecoration: 'none' }}
       >
-        <Avatar name={user!.name} size="sm" />
-        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-body)' }}>
-          {user!.name.split(' ')[0]}
-        </span>
+        <Avatar name={user!.name} size="md" />
       </Link>
     </div>
   );

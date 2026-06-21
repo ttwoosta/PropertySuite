@@ -469,7 +469,7 @@ export function SectionTitle({
 }: {
   children: ReactNode;
   count?: ReactNode;
-  tone?: 'danger';
+  tone?: 'danger' | 'success';
 }) {
   return (
     <div
@@ -481,7 +481,7 @@ export function SectionTitle({
           fontSize: 'var(--text-xl)',
           fontWeight: 700,
           letterSpacing: '-0.015em',
-          color: tone === 'danger' ? 'var(--danger-fg)' : 'var(--text-heading)',
+          color: tone === 'danger' ? 'var(--danger-fg)' : tone === 'success' ? 'var(--success-fg)' : 'var(--text-heading)',
         }}
       >
         {children}

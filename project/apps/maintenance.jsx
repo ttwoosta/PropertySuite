@@ -2,8 +2,8 @@
    Depends on: ps-ui.jsx (window globals) and maintenance-data.js (window.MAINT). */
 const { useState, useEffect, useMemo, useRef } = React;
 const MDS = window.MaintenanceSchedulerDesignSystem_02479c;
-const { Button, IconButton, Badge, Checkbox, Avatar, Card, Input } = MDS;
-const { PROPERTIES, statusOf, dueLabel } = window.MAINT;
+const { Button, IconButton, Badge, Checkbox, Avatar, Card, Input, StatCard } = MDS;
+const { PROPERTIES, statusOf, dueLabel, HISTORY, dateLabel, agoLabel, monthLabel } = window.MAINT;
 
 const VIEWS = [
 { id: 'home', label: 'Tasks', icon: 'home', title: 'Tasks',
@@ -12,6 +12,8 @@ const VIEWS = [
   sub: () => 'Gather supplies before you start' },
 { id: 'schedule', label: 'Schedule', icon: 'calendar', title: 'Schedule',
   sub: () => 'Everything sorted by due date' },
+{ id: 'history', label: 'History', icon: 'history', title: 'History',
+  sub: (p) => 'Completed maintenance at ' + p.name },
 { id: 'smart', label: 'Smart Plan', icon: 'sparkles', title: 'Smart plan',
   sub: () => 'Batch tasks into your free time' }];
 
@@ -56,9 +58,10 @@ function HomeScreen({ tasks, prop, onToggle, onEdit, onAdd, onTogglePrep }) {
   const mine = tasks.filter((t) => t.property === prop.id);
   const overdue = mine.filter((t) => statusOf(t) === 'overdue');
   const soon = mine.filter((t) => statusOf(t) === 'soon');
+  const done = mine.filter((t) => t.done);
   const [prepOpen, setPrepOpen] = useState(false);
   const visible = [...overdue, ...soon];
-  const empty = visible.length === 0;
+  const empty = visible.length === 0 && done.length === 0;
 
   return (
     <div className="ps-fade">
@@ -97,6 +100,7 @@ function HomeScreen({ tasks, prop, onToggle, onEdit, onAdd, onTogglePrep }) {
         }
 
           {/* Get ready collapsible */}
+          {visible.length > 0 &&
           <Card padding="0" style={{ overflow: 'hidden', marginBottom: 22 }}>
             <button onClick={() => setPrepOpen((o) => !o)} style={{ width: '100%', display: 'flex', alignItems: 'center',
             justifyContent: 'space-between', gap: 12, padding: '15px var(--card-pad)', background: 'transparent',
@@ -130,6 +134,16 @@ function HomeScreen({ tasks, prop, onToggle, onEdit, onAdd, onTogglePrep }) {
               </div>
           }
           </Card>
+          }
+
+          {done.length > 0 &&
+        <section style={{ marginBottom: 26 }}>
+              <SectionTitle count={done.length + (done.length === 1 ? ' task' : ' tasks')} tone="success">Done</SectionTitle>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {done.map((t) => <MaintRow key={t.id} task={t} onToggle={onToggle} onEdit={onEdit} />)}
+              </div>
+            </section>
+        }
         </>
       }
 
@@ -143,6 +157,7 @@ function PrepItem({ tid, item, onToggle, onUpdate, onRemove, onPhoto }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(item.label);
   const fileRef = useRef(null);
+  useEffect(() => { window.PS.icons(); }, [editing]);
   const begin = () => { setDraft(item.label); setEditing(true); };
   const commit = () => { const v = draft.trim(); if (v) onUpdate(tid, item.id, v); setEditing(false); };
   const pick = (e) => {
@@ -174,8 +189,8 @@ function PrepItem({ tid, item, onToggle, onUpdate, onRemove, onPhoto }) {
           <img src={item.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         </button>
       ) : null}
-      <span onClick={() => onToggle(tid, item.id)} style={{ cursor: 'pointer', flex: 1, minWidth: 0 }}>
-        <Checkbox checked={item.done} onChange={() => {}} label={item.label} />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <Checkbox checked={item.done} onChange={() => onToggle(tid, item.id)} label={item.label} />
       </span>
       <span className="ps-prep-actions" style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={pick} style={{ display: 'none' }} />
@@ -278,6 +293,79 @@ function ScheduleScreen({ tasks, prop, onToggle, onRecur }) {
 
 }
 
+/* ---------- History ---------- */
+function HistoryScreen({ tasks, prop }) {
+  // tasks completed in-session for this property → log entries
+  const sessionDone = tasks
+    .filter((t) => t.property === prop.id && t.done)
+    .map((t) => ({
+      id: 'live-' + t.id, name: t.name, icon: t.icon, tint: t.tint, property: t.property,
+      recurrence: t.recurrence, durationMin: t.durationMin,
+      daysAgo: Math.max(0, Math.floor((Date.now() - (t.completedAt || Date.now())) / 86400000)),
+      by: 'You', live: true,
+    }));
+  const seeded = HISTORY.filter((h) => h.property === prop.id);
+  const entries = [...sessionDone, ...seeded].sort((a, b) => a.daysAgo - b.daysAgo);
+
+  if (!entries.length)
+    return <Card><EmptyState icon="history" title="No history yet"
+      body={'Completed tasks at ' + prop.name + ' will be logged here as you tick them off.'} /></Card>;
+
+  // group by month
+  const groups = [];
+  entries.forEach((e) => {
+    const key = monthLabel(e.daysAgo);
+    let g = groups.find((x) => x.key === key);
+    if (!g) { g = { key, items: [] }; groups.push(g); }
+    g.items.push(e);
+  });
+
+  const totalMin = entries.reduce((s, e) => s + e.durationMin, 0);
+  const hrs = Math.floor(totalMin / 60), mins = totalMin % 60;
+
+  return (
+    <div className="ps-fade">
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 22 }}>
+        <StatCard label="Tasks completed" value={entries.length} icon={di('check-circle-2')} tone="brand" />
+        <StatCard label="Time logged" value={hrs ? hrs + 'h ' + mins + 'm' : mins + 'm'} icon={di('clock')} />
+      </div>
+
+      {groups.map((g) =>
+      <section key={g.key} style={{ marginBottom: 26 }}>
+          <SectionTitle count={g.items.length + (g.items.length === 1 ? ' task' : ' tasks')} tone="success">{g.key}</SectionTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {g.items.map((e) =>
+            <div key={e.id} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 14,
+              background: 'var(--surface-card)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)',
+              padding: '14px var(--card-pad)', overflow: 'hidden', boxShadow: 'var(--shadow-xs)' }}>
+                <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: 'var(--success-solid)' }} />
+                <span style={{ flex: 'none', width: 40, height: 40, borderRadius: 'var(--radius-md)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: `color-mix(in srgb, ${e.tint} 14%, var(--surface-card))`, color: e.tint }}>
+                  <span style={{ display: 'inline-flex', width: 20, height: 20 }}><i data-lucide={e.icon}></i></span>
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-heading)',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                    <Badge tone="neutral" size="sm">{e.recurrence}</Badge>
+                    <span className="ps-mono" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{e.durationMin} min</span>
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>· {e.by}</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flex: 'none' }}>
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-body)' }}>{dateLabel(e.daysAgo)}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{agoLabel(e.daysAgo)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+    </div>);
+
+}
+
 /* ---------- App root ---------- */
 function MaintApp() {
   const [authState, setAuthState] = useState('resolving');
@@ -302,7 +390,7 @@ function MaintApp() {
 
   const prop = PROPERTIES.find((p) => p.id === propId);
 
-  const toggle = (id) => setTasks((ts) => ts.map((t) => t.id === id ? { ...t, done: !t.done } : t));
+  const toggle = (id) => setTasks((ts) => ts.map((t) => t.id === id ? { ...t, done: !t.done, completedAt: !t.done ? Date.now() : null } : t));
   const togglePrep = (tid, pid) => setTasks((ts) => ts.map((t) => t.id === tid ?
   { ...t, prep: t.prep.map((p) => p.id === pid ? { ...p, done: !p.done } : p) } : t));
   const addPrep = (tid, label) => setTasks((ts) => ts.map((t) => t.id === tid ?
@@ -336,18 +424,15 @@ function MaintApp() {
   <div className="ps-topbar">
       <Hamburger />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="eyebrow">Maintenance</div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h1 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--text-heading)' }}>{v.title}</h1>
         </div>
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginTop: 1 }}>{v.sub(prop)}</div>
       </div>
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
-      <a href="Profile.html" title="Profile" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none',
-      padding: '5px 10px 5px 5px', background: 'transparent', border: '1px solid var(--border-default)',
-      borderRadius: 'var(--radius-pill)', cursor: 'pointer' }}>
-        <Avatar name={user.name} size="sm" />
-        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-body)' }}>{user.name.split(' ')[0]}</span>
+      <a href="Profile.html" title="Profile" aria-label="Profile"
+      style={{ display: 'flex', background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: '50%', textDecoration: 'none' }}>
+        <Avatar name={user.name} size="md" />
       </a>
     </div>;
 
@@ -370,6 +455,7 @@ function MaintApp() {
       {view === 'prep' && <PrepScreen tasks={tasks} prop={prop} onTogglePrep={togglePrep}
       onAddPrep={addPrep} onUpdatePrep={updatePrep} onRemovePrep={removePrep} onPhotoPrep={photoPrep} />}
       {view === 'schedule' && <ScheduleScreen tasks={tasks} prop={prop} onToggle={toggle} onRecur={setRecurring} />}
+      {view === 'history' && <HistoryScreen tasks={tasks} prop={prop} />}
       {view === 'smart' && <SmartPlan tasks={tasks} prop={prop} />}
 
       {editing && <TaskEditor task={editing === 'new' ? null : editing} defaultProp={propId}

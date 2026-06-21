@@ -10,6 +10,7 @@ import {
   IconButton,
   Input,
   NavItem,
+  StatCard,
 } from '../../ds-vendor/components';
 import {
   EmptyState,
@@ -27,11 +28,16 @@ import {
 } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import {
+  HISTORY,
   PROPERTIES,
   STATUS_TONE,
+  agoLabel,
+  dateLabel,
   dueLabel,
+  monthLabel,
   statusOf,
   useTasks,
+  type HistoryEntry,
   type Property,
   type Recurrence,
   type Task,
@@ -50,6 +56,7 @@ const VIEWS: ViewDef[] = [
   { id: 'home', label: 'Tasks', icon: 'home', title: 'Tasks', sub: (p) => 'Maintenance due at ' + p.name },
   { id: 'prep', label: 'Prep', icon: 'clipboard-check', title: 'Task prep', sub: () => 'Gather supplies before you start' },
   { id: 'schedule', label: 'Schedule', icon: 'calendar', title: 'Schedule', sub: () => 'Everything sorted by due date' },
+  { id: 'history', label: 'History', icon: 'history', title: 'History', sub: (p) => 'Completed maintenance at ' + p.name },
   { id: 'smart', label: 'Smart Plan', icon: 'sparkles', title: 'Smart plan', sub: () => 'Batch tasks into your free time' },
 ];
 
@@ -184,9 +191,10 @@ function HomeScreen({
   const mine = tasks.filter((t) => t.property === prop.id);
   const overdue = mine.filter((t) => statusOf(t) === 'overdue');
   const soon = mine.filter((t) => statusOf(t) === 'soon');
+  const done = mine.filter((t) => t.done);
   const [prepOpen, setPrepOpen] = useState(false);
   const visible = [...overdue, ...soon];
-  const empty = visible.length === 0;
+  const empty = visible.length === 0 && done.length === 0;
 
   return (
     <div className="ps-fade">
@@ -260,7 +268,7 @@ function HomeScreen({
           )}
 
           {/* Get ready collapsible */}
-          <Card padding="0" style={{ overflow: 'hidden', marginBottom: 22 }}>
+          {visible.length > 0 && <Card padding="0" style={{ overflow: 'hidden', marginBottom: 22 }}>
             <button
               onClick={() => setPrepOpen((o) => !o)}
               style={{
@@ -352,7 +360,16 @@ function HomeScreen({
                 ))}
               </div>
             )}
-          </Card>
+          </Card>}
+
+          {done.length > 0 && (
+            <section style={{ marginBottom: 26 }}>
+              <SectionTitle count={done.length + (done.length === 1 ? ' task' : ' tasks')} tone="success">Done</SectionTitle>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {done.map((t) => <MaintRow key={t.id} task={t} onToggle={onToggle} onEdit={onEdit} />)}
+              </div>
+            </section>
+          )}
         </>
       )}
 
@@ -431,8 +448,8 @@ function PrepItem({
           <img src={item.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         </button>
       ) : null}
-      <span onClick={() => onToggle(tid, item.id)} style={{ cursor: 'pointer', flex: 1, minWidth: 0 }}>
-        <Checkbox checked={item.done} onChange={() => {}} label={item.label} />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <Checkbox checked={item.done} onChange={() => onToggle(tid, item.id)} label={item.label} />
       </span>
       <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={pick} style={{ display: 'none' }} />
@@ -674,6 +691,110 @@ function ScheduleScreen({
   );
 }
 
+/* ---------- History ---------- */
+function HistoryScreen({ tasks, prop }: { tasks: Task[]; prop: Property }) {
+  const sessionDone: HistoryEntry[] = tasks
+    .filter((t) => t.property === prop.id && t.done)
+    .map((t) => ({
+      id: 'live-' + t.id,
+      name: t.name,
+      icon: t.icon,
+      tint: t.tint,
+      property: t.property,
+      recurrence: t.recurrence,
+      durationMin: t.durationMin,
+      daysAgo: Math.max(0, Math.floor((Date.now() - (t.completedAt || Date.now())) / 86_400_000)),
+      by: 'You',
+      live: true,
+    }));
+  const seeded = HISTORY.filter((h) => h.property === prop.id);
+  const entries = [...sessionDone, ...seeded].sort((a, b) => a.daysAgo - b.daysAgo);
+
+  if (!entries.length)
+    return (
+      <Card>
+        <EmptyState
+          icon="history"
+          title="No history yet"
+          body={'Completed tasks at ' + prop.name + ' will be logged here as you tick them off.'}
+        />
+      </Card>
+    );
+
+  const groups: { key: string; items: HistoryEntry[] }[] = [];
+  entries.forEach((e) => {
+    const key = monthLabel(e.daysAgo);
+    let g = groups.find((x) => x.key === key);
+    if (!g) { g = { key, items: [] }; groups.push(g); }
+    g.items.push(e);
+  });
+
+  const totalMin = entries.reduce((s, e) => s + e.durationMin, 0);
+  const hrs = Math.floor(totalMin / 60);
+  const mins = totalMin % 60;
+
+  return (
+    <div className="ps-fade">
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 22 }}>
+        <StatCard label="Tasks completed" value={entries.length} icon={di('check-circle-2')} tone="brand" />
+        <StatCard label="Time logged" value={hrs ? hrs + 'h ' + mins + 'm' : mins + 'm'} icon={di('clock')} />
+      </div>
+
+      {groups.map((g) => (
+        <section key={g.key} style={{ marginBottom: 26 }}>
+          <SectionTitle count={g.items.length + (g.items.length === 1 ? ' task' : ' tasks')} tone="success">
+            {g.key}
+          </SectionTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {g.items.map((e) => (
+              <div
+                key={e.id}
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  background: 'var(--surface-card)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '14px var(--card-pad)',
+                  overflow: 'hidden',
+                  boxShadow: 'var(--shadow-xs)',
+                }}
+              >
+                <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: 'var(--success-solid)' }} />
+                <span
+                  style={{
+                    flex: 'none', width: 40, height: 40, borderRadius: 'var(--radius-md)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: `color-mix(in srgb, ${e.tint} 14%, var(--surface-card))`, color: e.tint,
+                  }}
+                >
+                  <span style={{ display: 'inline-flex', width: 20, height: 20 }}>{di(e.icon)}</span>
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-heading)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {e.name}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                    <Badge tone="neutral" size="sm">{e.recurrence}</Badge>
+                    <span className="ps-mono" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{e.durationMin} min</span>
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>· {e.by}</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flex: 'none' }}>
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-body)' }}>{dateLabel(e.daysAgo)}</span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{agoLabel(e.daysAgo)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 /* ---------- Sidebar ---------- */
 function Sidebar({
   properties,
@@ -884,7 +1005,6 @@ function MaintInner() {
     <div className="ps-topbar">
       <Hamburger />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="eyebrow">Maintenance</div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h1
             style={{
@@ -906,24 +1026,10 @@ function MaintInner() {
       <Link
         to="/profile"
         title="Profile"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '5px 10px 5px 5px',
-          background: 'transparent',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-pill)',
-          cursor: 'pointer',
-          textDecoration: 'none',
-        }}
+        aria-label="Profile"
+        style={{ display: 'flex', background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: '50%', textDecoration: 'none' }}
       >
-        <Avatar name={user!.name} size="sm" />
-        <span
-          style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-body)' }}
-        >
-          {user!.name.split(' ')[0]}
-        </span>
+        <Avatar name={user!.name} size="md" />
       </Link>
     </div>
   );
@@ -982,6 +1088,7 @@ function MaintInner() {
       {view === 'schedule' && (
         <ScheduleScreen tasks={tasks} prop={prop} onToggle={toggleTask} onRecur={setRecurring} />
       )}
+      {view === 'history' && <HistoryScreen tasks={tasks} prop={prop} />}
       {view === 'smart' && <SmartPlan tasks={tasks} prop={prop} />}
         </>
       )}

@@ -345,7 +345,7 @@ function RentApp() {
       <div style={{ padding: '18px 16px 14px' }}>
         <a href="Property Suite.html" title="Back to launcher" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
           <img src="assets/logo-mark.svg" width="30" height="30" alt="" />
-          <span style={{ fontSize: 'var(--text-md)', fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--text-heading)' }}>RentTracker</span>
+          <span style={{ fontSize: 'var(--text-md)', fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--text-heading)' }}>Rent Tracker</span>
         </a>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '6px 12px' }}>
@@ -383,11 +383,9 @@ function RentApp() {
           <PeriodPicker month={month} year={year} onPick={(m, y) => {setMonth(m);setYear(y);}} onClose={() => setPeriodOpen(false)} />
         </Popover>
       </div>
-      <a href="Profile.html" title="Profile" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none',
-        padding: '5px 10px 5px 5px', background: 'transparent', border: '1px solid var(--border-default)',
-        borderRadius: 'var(--radius-pill)', cursor: 'pointer' }}>
-        <RAv name={user.name} size="sm" />
-        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-body)' }}>{user.name.split(' ')[0]}</span>
+      <a href="Profile.html" title="Profile" aria-label="Profile"
+    style={{ display: 'flex', background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: '50%', textDecoration: 'none' }}>
+        <RAv name={user.name} size="md" />
       </a>
     </div>;
 
