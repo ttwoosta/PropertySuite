@@ -4,13 +4,15 @@
 // If the project isn't configured yet (placeholder scaffold), `firebaseConfigured`
 // is false and the app falls back to a local demo auth so the whole flow still runs.
 import { initializeApp, type FirebaseApp } from 'firebase/app';
-import { getAuth, type Auth } from 'firebase/auth';
+import { connectAuthEmulator, getAuth, type Auth } from 'firebase/auth';
+import { connectFirestoreEmulator, getFirestore, type Firestore } from 'firebase/firestore';
 import {
   getAI,
   getGenerativeModel,
   GoogleAIBackend,
   type GenerativeModel,
 } from 'firebase/ai';
+import { connectStorageEmulator, FirebaseStorage, getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string | undefined,
@@ -28,13 +30,33 @@ export const firebaseConfigured = Boolean(
 
 let app: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
+let dbInstance: Firestore | null = null;
+let storageInstance: FirebaseStorage | null = null;
 
 if (firebaseConfigured) {
   app = initializeApp(firebaseConfig);
   authInstance = getAuth(app);
+  storageInstance = getStorage(app);
+
+  const isLocalDevelopment =
+  typeof window !== 'undefined' && ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+
+  if (isLocalDevelopment) {
+    dbInstance = getFirestore(app, 'db_local');
+
+    connectFirestoreEmulator(dbInstance, '127.0.0.1', 9000);
+    connectAuthEmulator(authInstance, 'http://127.0.0.1:9099', { disableWarnings: false });
+    connectStorageEmulator(storageInstance, '127.0.0.1', 9199);
+  }
+  else {
+    dbInstance = getFirestore(app);
+  }
 }
 
+
 export const auth = authInstance;
+export const db = dbInstance;
+export const storage = storageInstance;
 
 let model: GenerativeModel | null = null;
 /** Lazily create the Gemini model via Firebase AI Logic. Throws if not configured. */

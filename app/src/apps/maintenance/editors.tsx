@@ -12,21 +12,10 @@ import {
   type Property,
   type Recurrence,
   type Task,
+  type TaskFormData,
 } from './data';
 
 const RECUR: Recurrence[] = ['Weekly', 'Monthly', 'Quarterly'];
-
-export interface TaskFormData {
-  id?: string;
-  name: string;
-  icon: string;
-  tint: string;
-  durationMin: number;
-  bucket: Bucket;
-  recurrence: Recurrence;
-  property: string;
-  dueInDays: number;
-}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

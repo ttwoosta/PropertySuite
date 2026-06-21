@@ -20,6 +20,7 @@ import {
 import { auth, firebaseConfigured } from './firebase';
 
 export interface SuiteUser {
+  uid: string;
   email: string;
   name: string;
   initials: string;
@@ -53,12 +54,12 @@ function initialsOf(name: string): string {
   if (!p.length) return '?';
   return (p[0][0] + (p[1] ? p[1][0] : '')).toUpperCase();
 }
-function userFromEmail(email: string, displayName?: string | null): SuiteUser {
+function buildUser(uid: string, email: string, displayName?: string | null): SuiteUser {
   const name = displayName && displayName.trim() ? displayName.trim() : deriveName(email);
-  return { email, name, initials: initialsOf(name) };
+  return { uid, email, name, initials: initialsOf(name) };
 }
 function userFromFb(u: FbUser): SuiteUser {
-  return userFromEmail(u.email || 'you@example.com', u.displayName);
+  return buildUser(u.uid, u.email || 'you@example.com', u.displayName);
 }
 
 const DEMO_KEY = 'ps_auth_v1';
@@ -81,10 +82,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return unsub;
     }
     // Demo fallback: resolve from localStorage after a short beat (no login flash).
+    // Stored objects may predate the uid field; patch them on read.
     const t = setTimeout(() => {
       try {
         const raw = localStorage.getItem(DEMO_KEY);
-        const u = raw ? (JSON.parse(raw) as SuiteUser) : null;
+        const parsed = raw ? (JSON.parse(raw) as Partial<SuiteUser>) : null;
+        const u: SuiteUser | null = parsed?.email
+          ? buildUser(parsed.uid ?? parsed.email, parsed.email)
+          : null;
         if (u) {
           setUser(u);
           setStatus('in');
@@ -103,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await signInWithEmailAndPassword(auth, email, password);
       return;
     }
-    const u = userFromEmail(email);
+    const u = buildUser(email, email);
     localStorage.setItem(DEMO_KEY, JSON.stringify(u));
     setUser(u);
     setStatus('in');

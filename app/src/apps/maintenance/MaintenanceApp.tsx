@@ -16,6 +16,7 @@ import {
   Icon,
   ResponsiveShell,
   SectionTitle,
+  Spinner,
   ThemeToggle,
   ToastHost,
   useDrawer,
@@ -27,19 +28,15 @@ import { useAuth } from '../../lib/auth';
 import {
   PROPERTIES,
   STATUS_TONE,
-  TASKS,
   dueLabel,
   statusOf,
+  useTasks,
   type Property,
   type Recurrence,
   type Task,
-} from './data';
-import {
-  RecurrenceEditor,
-  SmartPlan,
-  TaskEditor,
   type TaskFormData,
-} from './editors';
+} from './data';
+import { RecurrenceEditor, SmartPlan, TaskEditor } from './editors';
 
 interface ViewDef {
   id: string;
@@ -729,9 +726,15 @@ function Sidebar({
 /* ---------- App root ---------- */
 function MaintInner() {
   const { user, signOut } = useAuth();
-  const [tasks, setTasks] = useState<Task[]>(() =>
-    TASKS.map((t) => ({ ...t, prep: t.prep.map((p) => ({ ...p })) })),
-  );
+  const {
+    tasks,
+    loading,
+    toggleTask,
+    togglePrep,
+    saveTask: persistTask,
+    deleteTask: persistDelete,
+    setRecurrence: persistRecurrence,
+  } = useTasks(user?.uid ?? null);
   const [propId, setPropId] = useState('elm');
   const [view, setView] = useState('home');
   const [theme, toggleTheme] = useTheme('maint');
@@ -741,34 +744,18 @@ function MaintInner() {
 
   const prop = PROPERTIES.find((p) => p.id === propId)!;
 
-  const toggle = (id: string) =>
-    setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
-  const togglePrep = (tid: string, pid: number) =>
-    setTasks((ts) =>
-      ts.map((t) =>
-        t.id === tid
-          ? { ...t, prep: t.prep.map((p) => (p.id === pid ? { ...p, done: !p.done } : p)) }
-          : t,
-      ),
-    );
   const saveTask = (data: TaskFormData) => {
-    setTasks((ts) => {
-      if (data.id) return ts.map((t) => (t.id === data.id ? { ...t, ...data } : t));
-      return [
-        ...ts,
-        { ...data, id: 'n' + Date.now(), done: false, prep: [] } as Task,
-      ];
-    });
+    persistTask(data);
     toast(data.id ? 'Task updated' : 'Task added');
     setEditing(null);
   };
   const deleteTask = (id: string) => {
-    setTasks((ts) => ts.filter((t) => t.id !== id));
+    persistDelete(id);
     toast('Task deleted', 'danger');
     setEditing(null);
   };
   const setRecurrence = (id: string, rec: Recurrence) => {
-    setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, recurrence: rec } : t)));
+    persistRecurrence(id, rec);
     toast('Cadence updated');
     setRecurring(null);
   };
@@ -860,11 +847,15 @@ function MaintInner() {
 
   return (
     <ResponsiveShell sidebar={sidebar} topBar={topBar} phoneChips={phoneChips}>
+      {loading ? (
+        <Spinner label="Loading tasks…" />
+      ) : (
+        <>
       {view === 'home' && (
         <HomeScreen
           tasks={tasks}
           prop={prop}
-          onToggle={toggle}
+          onToggle={toggleTask}
           onEdit={setEditing}
           onAdd={() => setEditing('new')}
           onTogglePrep={togglePrep}
@@ -872,9 +863,11 @@ function MaintInner() {
       )}
       {view === 'prep' && <PrepScreen tasks={tasks} prop={prop} onTogglePrep={togglePrep} />}
       {view === 'schedule' && (
-        <ScheduleScreen tasks={tasks} prop={prop} onToggle={toggle} onRecur={setRecurring} />
+        <ScheduleScreen tasks={tasks} prop={prop} onToggle={toggleTask} onRecur={setRecurring} />
       )}
       {view === 'smart' && <SmartPlan tasks={tasks} prop={prop} />}
+        </>
+      )}
 
       {editing && (
         <TaskEditor
