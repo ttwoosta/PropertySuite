@@ -48,7 +48,7 @@ const APPS: AppDef[] = [
 ];
 
 export function Launcher() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   // The launcher always sits on the light canvas, even after visiting a dark app.
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'light');
@@ -71,20 +71,22 @@ export function Launcher() {
             Property Suite
           </span>
         </div>
-        <button
-          onClick={() => void signOut()}
-          title="Sign out"
-          aria-label="Sign out"
+        <Link
+          to="/profile"
+          title="Profile"
+          aria-label="Profile"
           style={{
+            display: 'flex',
             background: 'none',
             border: 'none',
             padding: 0,
             cursor: 'pointer',
             borderRadius: '50%',
+            textDecoration: 'none',
           }}
         >
           <Avatar name={user.name} size="md" />
-        </button>
+        </Link>
       </header>
 
       <div className="launch-body ps-fade">

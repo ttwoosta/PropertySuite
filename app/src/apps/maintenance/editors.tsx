@@ -47,6 +47,7 @@ export function TaskEditor({
   onSave: (data: TaskFormData) => void;
   onDelete: (id: string) => void;
 }) {
+  const today = new Date().toISOString().slice(0, 10);
   const [f, setF] = useState<TaskFormData>(() =>
     task
       ? {
@@ -59,6 +60,7 @@ export function TaskEditor({
           recurrence: task.recurrence,
           property: task.property,
           dueInDays: task.dueInDays,
+          startDate: task.startDate ?? today,
         }
       : {
           name: '',
@@ -69,6 +71,7 @@ export function TaskEditor({
           recurrence: 'Monthly',
           property: defaultProp,
           dueInDays: 14,
+          startDate: today,
         },
   );
   const set = <K extends keyof TaskFormData>(k: K, v: TaskFormData[K]) =>
@@ -226,14 +229,23 @@ export function TaskEditor({
           </Field>
         </div>
 
-        <Field label="Recurrence">
-          <Segmented
-            ariaLabel="Recurrence"
-            value={f.recurrence}
-            onChange={(v) => set('recurrence', v as Recurrence)}
-            options={RECUR}
-          />
-        </Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <Field label="Recurrence">
+            <Segmented
+              ariaLabel="Recurrence"
+              value={f.recurrence}
+              onChange={(v) => set('recurrence', v as Recurrence)}
+              options={RECUR}
+            />
+          </Field>
+          <Field label="Start date">
+            <Input
+              type="date"
+              value={f.startDate ?? ''}
+              onChange={(e) => set('startDate', e.target.value)}
+            />
+          </Field>
+        </div>
 
         <Select
           label="Property"
@@ -253,9 +265,11 @@ export function RecurrenceEditor({
 }: {
   task: Task;
   onClose: () => void;
-  onSave: (id: string, rec: Recurrence) => void;
+  onSave: (id: string, rec: Recurrence, startDate: string, property: string) => void;
 }) {
   const [rec, setRec] = useState<Recurrence>(task.recurrence);
+  const [startDate, setStartDate] = useState(task.startDate ?? '');
+  const [property, setProperty] = useState(task.property);
   return (
     <Modal
       open
@@ -268,27 +282,37 @@ export function RecurrenceEditor({
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={() => onSave(task.id, rec)}>
+          <Button variant="primary" onClick={() => onSave(task.id, rec, startDate, property)}>
             Save cadence
           </Button>
         </>
       }
     >
-      <p
-        style={{
-          margin: '0 0 14px',
-          fontSize: 'var(--text-sm)',
-          color: 'var(--text-muted)',
-        }}
-      >
-        How often should this task repeat?
-      </p>
-      <Segmented
-        ariaLabel="Recurrence"
-        value={rec}
-        onChange={(v) => setRec(v as Recurrence)}
-        options={RECUR}
-      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <Select
+          label="Property"
+          value={property}
+          onChange={(e) => setProperty(e.target.value)}
+          options={PROPERTIES.map((p) => ({ value: p.id, label: p.name }))}
+        />
+        <Field label="Frequency">
+          <p style={{ margin: '0 0 10px', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+            How often should this task repeat?
+          </p>
+          <Segmented
+            ariaLabel="Recurrence"
+            value={rec}
+            onChange={(v) => setRec(v as Recurrence)}
+            options={RECUR}
+          />
+        </Field>
+        <Field label="Start date">
+          <p style={{ margin: '0 0 10px', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+            Choose the day this cadence begins.
+          </p>
+          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+        </Field>
+      </div>
     </Modal>
   );
 }

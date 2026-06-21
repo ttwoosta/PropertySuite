@@ -67,12 +67,14 @@ export interface InputProps {
   value?: string | number;
   defaultValue?: string | number;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   placeholder?: string;
   leadingIcon?: ReactNode;
   hint?: string;
   error?: string;
   min?: string | number;
   autoComplete?: string;
+  autoFocus?: boolean;
   style?: CSSProperties;
 }
 

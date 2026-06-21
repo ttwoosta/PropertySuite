@@ -7,6 +7,7 @@ import { Spinner } from './components/ui';
 import { Login } from './auth/Login';
 import { Launcher } from './apps/Launcher';
 import { MaintenanceApp } from './apps/maintenance/MaintenanceApp';
+import { ProfileApp } from './apps/profile/ProfileApp';
 import { RentApp } from './apps/rent/RentApp';
 import { TenantApp } from './apps/tenant/TenantApp';
 
@@ -29,6 +30,7 @@ function AuthGate() {
       <Route path="/maintenance" element={<MaintenanceApp />} />
       <Route path="/rent" element={<RentApp />} />
       <Route path="/tenant-bridge" element={<TenantApp />} />
+      <Route path="/profile" element={<ProfileApp />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

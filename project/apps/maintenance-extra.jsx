@@ -17,9 +17,10 @@
   }
 
   function TaskEditor({ task, defaultProp, onClose, onSave, onDelete, Segmented }) {
-    const [f, setF] = useState(() => task ? { ...task } : {
+    const today = new Date().toISOString().slice(0, 10);
+    const [f, setF] = useState(() => task ? { startDate: today, ...task } : {
       name: '', icon: 'wrench', tint: TINTS[0].value, durationMin: 30,
-      bucket: 'quick', recurrence: 'Monthly', property: defaultProp, dueInDays: 14,
+      bucket: 'quick', recurrence: 'Monthly', property: defaultProp, dueInDays: 14, startDate: today,
     });
     const set = (k, v) => setF(s => ({ ...s, [k]: v }));
     const save = () => { if (!f.name.trim()) return; onSave({ ...f, id: task ? task.id : undefined }); };
@@ -87,9 +88,14 @@
             </Field>
           </div>
 
-          <Field label="Recurrence">
-            <Segmented ariaLabel="Recurrence" value={f.recurrence} onChange={v => set('recurrence', v)} options={RECUR} />
-          </Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <Field label="Recurrence">
+              <Segmented ariaLabel="Recurrence" value={f.recurrence} onChange={v => set('recurrence', v)} options={RECUR} />
+            </Field>
+            <Field label="Start date">
+              <Input type="date" value={f.startDate} onChange={e => set('startDate', e.target.value)} />
+            </Field>
+          </div>
 
           <Select label="Property" value={f.property} onChange={e => set('property', e.target.value)}
             options={PROPERTIES.map(p => ({ value: p.id, label: p.name }))} />
@@ -100,14 +106,26 @@
 
   function RecurrenceEditor({ task, onClose, onSave, Segmented }) {
     const [rec, setRec] = useState(task.recurrence);
+    const [startDate, setStartDate] = useState(task.startDate || '');
+    const [property, setProperty] = useState(task.property);
     return (
       <Modal open onClose={onClose} title="Recurrence" subtitle={task.name} width={420}
         footer={<>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" onClick={() => onSave(task.id, rec)}>Save cadence</Button>
+          <Button variant="primary" onClick={() => onSave(task.id, rec, startDate, property)}>Save cadence</Button>
         </>}>
-        <p style={{ margin: '0 0 14px', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>How often should this task repeat?</p>
-        <Segmented ariaLabel="Recurrence" value={rec} onChange={setRec} options={RECUR} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <Select label="Property" value={property} onChange={e => setProperty(e.target.value)}
+            options={PROPERTIES.map(p => ({ value: p.id, label: p.name }))} />
+          <Field label="Frequency">
+            <p style={{ margin: '0 0 10px', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>How often should this task repeat?</p>
+            <Segmented ariaLabel="Recurrence" value={rec} onChange={setRec} options={RECUR} />
+          </Field>
+          <Field label="Start date">
+            <p style={{ margin: '0 0 10px', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>Choose the day this cadence begins.</p>
+            <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+          </Field>
+        </div>
       </Modal>
     );
   }

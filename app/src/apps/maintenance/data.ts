@@ -28,6 +28,7 @@ export interface PrepItem {
   id: number;
   label: string;
   done: boolean;
+  photo?: string;
 }
 
 export type Recurrence = 'Weekly' | 'Monthly' | 'Quarterly';
@@ -46,6 +47,7 @@ export interface Task {
   bucket: Bucket;
   done: boolean;
   prep: PrepItem[];
+  startDate?: string;
 }
 
 export const PROPERTIES: Property[] = [
@@ -133,6 +135,7 @@ export interface TaskFormData {
   recurrence: Recurrence;
   property: string;
   dueInDays: number;
+  startDate?: string;
 }
 
 /* ---- Firestore helpers ---- */
@@ -167,9 +170,13 @@ export interface TaskActions {
   loading: boolean;
   toggleTask: (id: string) => void;
   togglePrep: (tid: string, pid: number) => void;
+  addPrep: (tid: string, label: string) => void;
+  updatePrep: (tid: string, pid: number, label: string) => void;
+  removePrep: (tid: string, pid: number) => void;
+  photoPrep: (tid: string, pid: number, photo: string) => void;
   saveTask: (data: TaskFormData) => void;
   deleteTask: (id: string) => void;
-  setRecurrence: (id: string, rec: Recurrence) => void;
+  setRecurrence: (id: string, rec: Recurrence, startDate?: string, property?: string) => void;
 }
 
 export function useTasks(uid: string | null): TaskActions {
@@ -239,6 +246,72 @@ export function useTasks(uid: string | null): TaskActions {
     void updateDoc(doc(db, 'users', uid, 'tasks', tid), { prep: newPrep });
   };
 
+  const addPrep = (tid: string, label: string) => {
+    setTasks((ts) =>
+      ts.map((t) =>
+        t.id === tid
+          ? { ...t, prep: [...t.prep, { id: Date.now(), label, done: false }] }
+          : t,
+      ),
+    );
+    if (firebaseConfigured && uid && db) {
+      const task = tasks.find((t) => t.id === tid);
+      if (task) {
+        const newPrep = [...task.prep, { id: Date.now(), label, done: false }];
+        void updateDoc(doc(db, 'users', uid, 'tasks', tid), { prep: newPrep });
+      }
+    }
+  };
+
+  const updatePrep = (tid: string, pid: number, label: string) => {
+    setTasks((ts) =>
+      ts.map((t) =>
+        t.id === tid
+          ? { ...t, prep: t.prep.map((p) => (p.id === pid ? { ...p, label } : p)) }
+          : t,
+      ),
+    );
+    if (firebaseConfigured && uid && db) {
+      const task = tasks.find((t) => t.id === tid);
+      if (task) {
+        const newPrep = task.prep.map((p) => (p.id === pid ? { ...p, label } : p));
+        void updateDoc(doc(db, 'users', uid, 'tasks', tid), { prep: newPrep });
+      }
+    }
+  };
+
+  const removePrep = (tid: string, pid: number) => {
+    setTasks((ts) =>
+      ts.map((t) =>
+        t.id === tid ? { ...t, prep: t.prep.filter((p) => p.id !== pid) } : t,
+      ),
+    );
+    if (firebaseConfigured && uid && db) {
+      const task = tasks.find((t) => t.id === tid);
+      if (task) {
+        const newPrep = task.prep.filter((p) => p.id !== pid);
+        void updateDoc(doc(db, 'users', uid, 'tasks', tid), { prep: newPrep });
+      }
+    }
+  };
+
+  const photoPrep = (tid: string, pid: number, photo: string) => {
+    setTasks((ts) =>
+      ts.map((t) =>
+        t.id === tid
+          ? { ...t, prep: t.prep.map((p) => (p.id === pid ? { ...p, photo } : p)) }
+          : t,
+      ),
+    );
+    if (firebaseConfigured && uid && db) {
+      const task = tasks.find((t) => t.id === tid);
+      if (task) {
+        const newPrep = task.prep.map((p) => (p.id === pid ? { ...p, photo } : p));
+        void updateDoc(doc(db, 'users', uid, 'tasks', tid), { prep: newPrep });
+      }
+    }
+  };
+
   const saveTask = (data: TaskFormData) => {
     const { id, dueInDays, ...rest } = data;
     const firestoreFields = { ...rest, dueDateMs: Date.now() + dueInDays * 86_400_000 };
@@ -266,13 +339,16 @@ export function useTasks(uid: string | null): TaskActions {
     void deleteDoc(doc(db, 'users', uid, 'tasks', id));
   };
 
-  const setRecurrence = (id: string, rec: Recurrence) => {
+  const setRecurrence = (id: string, rec: Recurrence, startDate?: string, property?: string) => {
+    const update: Partial<Task> = { recurrence: rec };
+    if (startDate !== undefined) update.startDate = startDate;
+    if (property) update.property = property;
     if (!firebaseConfigured || !uid || !db) {
-      setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, recurrence: rec } : t)));
+      setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, ...update } : t)));
       return;
     }
-    void updateDoc(doc(db, 'users', uid, 'tasks', id), { recurrence: rec });
+    void updateDoc(doc(db, 'users', uid, 'tasks', id), update);
   };
 
-  return { tasks, loading, toggleTask, togglePrep, saveTask, deleteTask, setRecurrence };
+  return { tasks, loading, toggleTask, togglePrep, addPrep, updatePrep, removePrep, photoPrep, saveTask, deleteTask, setRecurrence };
 }

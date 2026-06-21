@@ -2,11 +2,11 @@
    Depends on: ps-ui.jsx (window globals) and maintenance-data.js (window.MAINT). */
 const { useState, useEffect, useMemo, useRef } = React;
 const MDS = window.MaintenanceSchedulerDesignSystem_02479c;
-const { Button, IconButton, Badge, Checkbox, Avatar, Card } = MDS;
+const { Button, IconButton, Badge, Checkbox, Avatar, Card, Input } = MDS;
 const { PROPERTIES, statusOf, dueLabel } = window.MAINT;
 
 const VIEWS = [
-{ id: 'home', label: 'Home', icon: 'home', title: 'Home',
+{ id: 'home', label: 'Tasks', icon: 'home', title: 'Tasks',
   sub: (p) => 'Maintenance due at ' + p.name },
 { id: 'prep', label: 'Prep', icon: 'clipboard-check', title: 'Task prep',
   sub: () => 'Gather supplies before you start' },
@@ -139,7 +139,67 @@ function HomeScreen({ tasks, prop, onToggle, onEdit, onAdd, onTogglePrep }) {
 }
 
 /* ---------- Prep ---------- */
-function PrepScreen({ tasks, prop, onTogglePrep }) {
+function PrepItem({ tid, item, onToggle, onUpdate, onRemove, onPhoto }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(item.label);
+  const fileRef = useRef(null);
+  const begin = () => { setDraft(item.label); setEditing(true); };
+  const commit = () => { const v = draft.trim(); if (v) onUpdate(tid, item.id, v); setEditing(false); };
+  const pick = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onPhoto(tid, item.id, reader.result);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  if (editing) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <Input value={draft} autoFocus onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }} />
+        </div>
+        <IconButton label="Save item" variant="ghost" size="sm" onClick={commit}>{di('check')}</IconButton>
+        <IconButton label="Cancel" variant="ghost" size="sm" onClick={() => setEditing(false)}>{di('x')}</IconButton>
+      </div>);
+  }
+  const openPicker = () => { if (fileRef.current) fileRef.current.click(); };
+  const thumbStyle = { flex: 'none', width: 30, height: 30, padding: 0, borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--border-default)', cursor: 'pointer', background: 'none' };
+  return (
+    <div className="ps-prep-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+      {item.photo ? (
+        <button type="button" onClick={openPicker} title="Replace photo" style={thumbStyle}>
+          <img src={item.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        </button>
+      ) : null}
+      <span onClick={() => onToggle(tid, item.id)} style={{ cursor: 'pointer', flex: 1, minWidth: 0 }}>
+        <Checkbox checked={item.done} onChange={() => {}} label={item.label} />
+      </span>
+      <span className="ps-prep-actions" style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={pick} style={{ display: 'none' }} />
+        <IconButton label={item.photo ? 'Replace photo' : 'Take photo'} variant="ghost" size="sm" onClick={openPicker}>{di('camera')}</IconButton>
+        <IconButton label="Edit item" variant="ghost" size="sm" onClick={begin}>{di('pencil')}</IconButton>
+        <IconButton label="Remove item" variant="ghost" size="sm" onClick={() => onRemove(tid, item.id)}>{di('trash-2')}</IconButton>
+      </span>
+    </div>);
+}
+
+function AddPrepRow({ tid, onAdd }) {
+  const [val, setVal] = useState('');
+  const add = () => { const v = val.trim(); if (!v) return; onAdd(tid, v); setVal(''); };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+      <div style={{ flex: 1 }}>
+        <Input value={val} placeholder="Add supply…" onChange={(e) => setVal(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') add(); }} />
+      </div>
+      <IconButton label="Add item" variant="ghost" size="sm" onClick={add}>{di('plus')}</IconButton>
+    </div>);
+}
+
+function PrepScreen({ tasks, prop, onTogglePrep, onAddPrep, onUpdatePrep, onRemovePrep, onPhotoPrep }) {
   const mine = tasks.filter((t) => t.property === prop.id);
   if (!mine.length) return <Card><EmptyState icon="clipboard" title="No tasks to prep" body="Add a task to build its supply checklist." /></Card>;
   return (
@@ -161,13 +221,10 @@ function PrepScreen({ tasks, prop, onTogglePrep }) {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
               {t.prep.map((item) =>
-              <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                  <span onClick={() => onTogglePrep(t.id, item.id)} style={{ cursor: 'pointer', flex: 1 }}>
-                    <Checkbox checked={item.done} onChange={() => {}} label={item.label} />
-                  </span>
-                  <IconButton label="Capture photo" variant="ghost" size="sm">{di('camera')}</IconButton>
-                </div>
+              <PrepItem key={item.id} tid={t.id} item={item} onToggle={onTogglePrep}
+                onUpdate={onUpdatePrep} onRemove={onRemovePrep} onPhoto={onPhotoPrep} />
               )}
+              <AddPrepRow tid={t.id} onAdd={onAddPrep} />
             </div>
           </Card>);
 
@@ -248,6 +305,14 @@ function MaintApp() {
   const toggle = (id) => setTasks((ts) => ts.map((t) => t.id === id ? { ...t, done: !t.done } : t));
   const togglePrep = (tid, pid) => setTasks((ts) => ts.map((t) => t.id === tid ?
   { ...t, prep: t.prep.map((p) => p.id === pid ? { ...p, done: !p.done } : p) } : t));
+  const addPrep = (tid, label) => setTasks((ts) => ts.map((t) => t.id === tid ?
+  { ...t, prep: [...t.prep, { id: 'p' + Date.now(), label, done: false }] } : t));
+  const updatePrep = (tid, pid, label) => setTasks((ts) => ts.map((t) => t.id === tid ?
+  { ...t, prep: t.prep.map((p) => p.id === pid ? { ...p, label } : p) } : t));
+  const removePrep = (tid, pid) => setTasks((ts) => ts.map((t) => t.id === tid ?
+  { ...t, prep: t.prep.filter((p) => p.id !== pid) } : t));
+  const photoPrep = (tid, pid, photo) => setTasks((ts) => ts.map((t) => t.id === tid ?
+  { ...t, prep: t.prep.map((p) => p.id === pid ? { ...p, photo } : p) } : t));
   const saveTask = (data) => {
     setTasks((ts) => {
       if (data.id) return ts.map((t) => t.id === data.id ? { ...t, ...data } : t);
@@ -257,7 +322,7 @@ function MaintApp() {
     setEditing(null);
   };
   const deleteTask = (id) => {setTasks((ts) => ts.filter((t) => t.id !== id));toast('Task deleted', 'danger');setEditing(null);};
-  const setRecurrence = (id, rec) => {setTasks((ts) => ts.map((t) => t.id === id ? { ...t, recurrence: rec } : t));toast('Cadence updated');setRecurring(null);};
+  const setRecurrence = (id, rec, startDate, property) => {setTasks((ts) => ts.map((t) => t.id === id ? { ...t, recurrence: rec, startDate, ...(property ? { property } : {}) } : t));toast('Cadence updated');setRecurring(null);};
 
   if (authState === 'resolving') return <Spinner label="Loading Maintenance Scheduler…" />;
 
@@ -278,12 +343,12 @@ function MaintApp() {
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginTop: 1 }}>{v.sub(prop)}</div>
       </div>
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
-      <button onClick={signOut} title="Sign out" style={{ display: 'flex', alignItems: 'center', gap: 8,
+      <a href="Profile.html" title="Profile" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none',
       padding: '5px 10px 5px 5px', background: 'transparent', border: '1px solid var(--border-default)',
       borderRadius: 'var(--radius-pill)', cursor: 'pointer' }}>
         <Avatar name={user.name} size="sm" />
         <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-body)' }}>{user.name.split(' ')[0]}</span>
-      </button>
+      </a>
     </div>;
 
 
@@ -302,7 +367,8 @@ function MaintApp() {
   return (
     <ResponsiveShell sidebar={sidebar} topBar={topBar} phoneChips={phoneChips}>
       {view === 'home' && <HomeScreen tasks={tasks} prop={prop} onToggle={toggle} onEdit={setEditing} onAdd={() => setEditing('new')} onTogglePrep={togglePrep} />}
-      {view === 'prep' && <PrepScreen tasks={tasks} prop={prop} onTogglePrep={togglePrep} />}
+      {view === 'prep' && <PrepScreen tasks={tasks} prop={prop} onTogglePrep={togglePrep}
+      onAddPrep={addPrep} onUpdatePrep={updatePrep} onRemovePrep={removePrep} onPhotoPrep={photoPrep} />}
       {view === 'schedule' && <ScheduleScreen tasks={tasks} prop={prop} onToggle={toggle} onRecur={setRecurring} />}
       {view === 'smart' && <SmartPlan tasks={tasks} prop={prop} />}
 

@@ -246,7 +246,7 @@ function TenantNav({
 
 /* ---------- App ---------- */
 function TenantInner() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [view, setView] = useState('tenants');
   const [tenantId, setTenantId] = useState('marcus');
   const [threads, setThreads] = useState<Record<string, Message[]>>(() =>
@@ -397,9 +397,9 @@ function TenantInner() {
         </h1>
       </div>
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
-      <button
-        onClick={() => void signOut()}
-        title="Sign out"
+      <Link
+        to="/profile"
+        title="Profile"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -409,13 +409,14 @@ function TenantInner() {
           border: '1px solid var(--border-default)',
           borderRadius: 'var(--radius-pill)',
           cursor: 'pointer',
+          textDecoration: 'none',
         }}
       >
         <Avatar name={user!.name} size="sm" />
         <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-body)' }}>
           {user!.name.split(' ')[0]}
         </span>
-      </button>
+      </Link>
     </div>
   );
 

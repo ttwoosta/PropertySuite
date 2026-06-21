@@ -1005,7 +1005,7 @@ function RentNav({
 
 /* ---------------- App ---------------- */
 function RentInner() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [view, setView] = useState('home');
   const [houseId, setHouseId] = useState('maple');
   const [month, setMonth] = useState(5);
@@ -1013,7 +1013,6 @@ function RentInner() {
   const [theme, toggleTheme] = useTheme('rent');
   const [houseOpen, setHouseOpen] = useState(false);
   const [periodOpen, setPeriodOpen] = useState(false);
-  const [userOpen, setUserOpen] = useState(false);
   const [rentRoom, setRentRoom] = useState<Room | null>(null);
   const toast = useToast();
 
@@ -1117,40 +1116,26 @@ function RentInner() {
           />
         </Popover>
       </div>
-      <div style={{ position: 'relative' }}>
-        <button
-          onClick={() => setUserOpen((o) => !o)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-        >
-          <Avatar name={user!.name} size="sm" />
-        </button>
-        <Popover open={userOpen} onClose={() => setUserOpen(false)} align="right">
-          <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
-            <div
-              style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-heading)' }}
-            >
-              {user!.name}
-            </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-              {user!.email}
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              setUserOpen(false);
-              toast('Profile');
-            }}
-            style={menuItem(false)}
-          >
-            <Icon name="user" size={16} style={{ color: 'var(--text-muted)' }} />
-            Profile
-          </button>
-          <button onClick={() => void signOut()} style={menuItem(false)}>
-            <Icon name="log-out" size={16} style={{ color: 'var(--text-muted)' }} />
-            Sign out
-          </button>
-        </Popover>
-      </div>
+      <Link
+        to="/profile"
+        title="Profile"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          textDecoration: 'none',
+          padding: '5px 10px 5px 5px',
+          background: 'transparent',
+          border: '1px solid var(--border-default)',
+          borderRadius: 'var(--radius-pill)',
+          cursor: 'pointer',
+        }}
+      >
+        <Avatar name={user!.name} size="sm" />
+        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-body)' }}>
+          {user!.name.split(' ')[0]}
+        </span>
+      </Link>
     </div>
   );
 

@@ -190,12 +190,12 @@ function TenantApp() {
         </h1>
       </div>
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
-      <button onClick={signOut} title="Sign out" style={{ display: 'flex', alignItems: 'center', gap: 8,
+      <a href="Profile.html" title="Profile" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none',
         padding: '5px 10px 5px 5px', background: 'transparent', border: '1px solid var(--border-default)',
         borderRadius: 'var(--radius-pill)', cursor: 'pointer' }}>
         <TAv name={user.name} size="sm" />
         <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-body)' }}>{user.name.split(' ')[0]}</span>
-      </button>
+      </a>
     </div>
   );
 

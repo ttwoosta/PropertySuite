@@ -1,5 +1,5 @@
 // Maintenance Scheduler — shell + screens (port of maintenance.jsx).
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Avatar,
@@ -8,6 +8,7 @@ import {
   Card,
   Checkbox,
   IconButton,
+  Input,
   NavItem,
 } from '../../ds-vendor/components';
 import {
@@ -46,7 +47,7 @@ interface ViewDef {
   sub: (p: Property) => string;
 }
 const VIEWS: ViewDef[] = [
-  { id: 'home', label: 'Home', icon: 'home', title: 'Home', sub: (p) => 'Maintenance due at ' + p.name },
+  { id: 'home', label: 'Tasks', icon: 'home', title: 'Tasks', sub: (p) => 'Maintenance due at ' + p.name },
   { id: 'prep', label: 'Prep', icon: 'clipboard-check', title: 'Task prep', sub: () => 'Gather supplies before you start' },
   { id: 'schedule', label: 'Schedule', icon: 'calendar', title: 'Schedule', sub: () => 'Everything sorted by due date' },
   { id: 'smart', label: 'Smart Plan', icon: 'sparkles', title: 'Smart plan', sub: () => 'Batch tasks into your free time' },
@@ -363,14 +364,125 @@ function HomeScreen({
 }
 
 /* ---------- Prep ---------- */
+function PrepItem({
+  tid,
+  item,
+  onToggle,
+  onUpdate,
+  onRemove,
+  onPhoto,
+}: {
+  tid: string;
+  item: { id: number; label: string; done: boolean; photo?: string };
+  onToggle: (tid: string, pid: number) => void;
+  onUpdate: (tid: string, pid: number, label: string) => void;
+  onRemove: (tid: string, pid: number) => void;
+  onPhoto: (tid: string, pid: number, photo: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(item.label);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const begin = () => { setDraft(item.label); setEditing(true); };
+  const commit = () => {
+    const v = draft.trim();
+    if (v) onUpdate(tid, item.id, v);
+    setEditing(false);
+  };
+  const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onPhoto(tid, item.id, reader.result as string);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  if (editing) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <Input
+            value={draft}
+            autoFocus
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commit();
+              if (e.key === 'Escape') setEditing(false);
+            }}
+          />
+        </div>
+        <IconButton label="Save item" variant="ghost" size="sm" onClick={commit}>{di('check')}</IconButton>
+        <IconButton label="Cancel" variant="ghost" size="sm" onClick={() => setEditing(false)}>{di('x')}</IconButton>
+      </div>
+    );
+  }
+
+  const thumbStyle: React.CSSProperties = {
+    flex: 'none', width: 30, height: 30, padding: 0,
+    borderRadius: 'var(--radius-sm)', overflow: 'hidden',
+    border: '1px solid var(--border-default)', cursor: 'pointer', background: 'none',
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+      {item.photo ? (
+        <button type="button" onClick={() => fileRef.current?.click()} title="Replace photo" style={thumbStyle}>
+          <img src={item.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        </button>
+      ) : null}
+      <span onClick={() => onToggle(tid, item.id)} style={{ cursor: 'pointer', flex: 1, minWidth: 0 }}>
+        <Checkbox checked={item.done} onChange={() => {}} label={item.label} />
+      </span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={pick} style={{ display: 'none' }} />
+        <IconButton label={item.photo ? 'Replace photo' : 'Take photo'} variant="ghost" size="sm" onClick={() => fileRef.current?.click()}>{di('camera')}</IconButton>
+        <IconButton label="Edit item" variant="ghost" size="sm" onClick={begin}>{di('pencil')}</IconButton>
+        <IconButton label="Remove item" variant="ghost" size="sm" onClick={() => onRemove(tid, item.id)}>{di('trash-2')}</IconButton>
+      </span>
+    </div>
+  );
+}
+
+function AddPrepRow({ tid, onAdd }: { tid: string; onAdd: (tid: string, label: string) => void }) {
+  const [val, setVal] = useState('');
+  const add = () => {
+    const v = val.trim();
+    if (!v) return;
+    onAdd(tid, v);
+    setVal('');
+  };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+      <div style={{ flex: 1 }}>
+        <Input
+          value={val}
+          placeholder="Add supply…"
+          onChange={(e) => setVal(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') add(); }}
+        />
+      </div>
+      <IconButton label="Add item" variant="ghost" size="sm" onClick={add}>{di('plus')}</IconButton>
+    </div>
+  );
+}
+
 function PrepScreen({
   tasks,
   prop,
   onTogglePrep,
+  onAddPrep,
+  onUpdatePrep,
+  onRemovePrep,
+  onPhotoPrep,
 }: {
   tasks: Task[];
   prop: Property;
   onTogglePrep: (tid: string, pid: number) => void;
+  onAddPrep: (tid: string, label: string) => void;
+  onUpdatePrep: (tid: string, pid: number, label: string) => void;
+  onRemovePrep: (tid: string, pid: number) => void;
+  onPhotoPrep: (tid: string, pid: number, photo: string) => void;
 }) {
   const mine = tasks.filter((t) => t.property === prop.id);
   if (!mine.length)
@@ -429,26 +541,17 @@ function PrepScreen({
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
               {t.prep.map((item) => (
-                <div
+                <PrepItem
                   key={item.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 10,
-                  }}
-                >
-                  <span
-                    onClick={() => onTogglePrep(t.id, item.id)}
-                    style={{ cursor: 'pointer', flex: 1 }}
-                  >
-                    <Checkbox checked={item.done} onChange={() => {}} label={item.label} />
-                  </span>
-                  <IconButton label="Capture photo" variant="ghost" size="sm">
-                    {di('camera')}
-                  </IconButton>
-                </div>
+                  tid={t.id}
+                  item={item}
+                  onToggle={onTogglePrep}
+                  onUpdate={onUpdatePrep}
+                  onRemove={onRemovePrep}
+                  onPhoto={onPhotoPrep}
+                />
               ))}
+              <AddPrepRow tid={t.id} onAdd={onAddPrep} />
             </div>
           </Card>
         );
@@ -724,12 +827,16 @@ function Sidebar({
 
 /* ---------- App root ---------- */
 function MaintInner() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const {
     tasks,
     loading,
     toggleTask,
     togglePrep,
+    addPrep,
+    updatePrep,
+    removePrep,
+    photoPrep,
     saveTask: persistTask,
     deleteTask: persistDelete,
     setRecurrence: persistRecurrence,
@@ -753,8 +860,8 @@ function MaintInner() {
     toast('Task deleted', 'danger');
     setEditing(null);
   };
-  const setRecurrence = (id: string, rec: Recurrence) => {
-    persistRecurrence(id, rec);
+  const setRecurrence = (id: string, rec: Recurrence, startDate: string, property: string) => {
+    persistRecurrence(id, rec, startDate, property);
     toast('Cadence updated');
     setRecurring(null);
   };
@@ -796,9 +903,9 @@ function MaintInner() {
         </div>
       </div>
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
-      <button
-        onClick={() => void signOut()}
-        title="Sign out"
+      <Link
+        to="/profile"
+        title="Profile"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -808,6 +915,7 @@ function MaintInner() {
           border: '1px solid var(--border-default)',
           borderRadius: 'var(--radius-pill)',
           cursor: 'pointer',
+          textDecoration: 'none',
         }}
       >
         <Avatar name={user!.name} size="sm" />
@@ -816,7 +924,7 @@ function MaintInner() {
         >
           {user!.name.split(' ')[0]}
         </span>
-      </button>
+      </Link>
     </div>
   );
 
@@ -860,7 +968,17 @@ function MaintInner() {
           onTogglePrep={togglePrep}
         />
       )}
-      {view === 'prep' && <PrepScreen tasks={tasks} prop={prop} onTogglePrep={togglePrep} />}
+      {view === 'prep' && (
+        <PrepScreen
+          tasks={tasks}
+          prop={prop}
+          onTogglePrep={togglePrep}
+          onAddPrep={addPrep}
+          onUpdatePrep={updatePrep}
+          onRemovePrep={removePrep}
+          onPhotoPrep={photoPrep}
+        />
+      )}
       {view === 'schedule' && (
         <ScheduleScreen tasks={tasks} prop={prop} onToggle={toggleTask} onRecur={setRecurring} />
       )}

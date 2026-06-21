@@ -383,17 +383,12 @@ function RentApp() {
           <PeriodPicker month={month} year={year} onPick={(m, y) => {setMonth(m);setYear(y);}} onClose={() => setPeriodOpen(false)} />
         </Popover>
       </div>
-      <div style={{ position: 'relative' }}>
-        <button onClick={() => setUserOpen((o) => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}><RAv name={user.name} size="sm" /></button>
-        <Popover open={userOpen} onClose={() => setUserOpen(false)} align="right">
-          <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-heading)' }}>{user.name}</div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{user.email}</div>
-          </div>
-          <button onClick={() => {setUserOpen(false);toast('Profile');}} style={menuItem(false)}><Icon name="user" size={16} style={{ color: 'var(--text-muted)' }} />Profile</button>
-          <button onClick={signOut} style={menuItem(false)}><Icon name="log-out" size={16} style={{ color: 'var(--text-muted)' }} />Sign out</button>
-        </Popover>
-      </div>
+      <a href="Profile.html" title="Profile" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none',
+        padding: '5px 10px 5px 5px', background: 'transparent', border: '1px solid var(--border-default)',
+        borderRadius: 'var(--radius-pill)', cursor: 'pointer' }}>
+        <RAv name={user.name} size="sm" />
+        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-body)' }}>{user.name.split(' ')[0]}</span>
+      </a>
     </div>;
 
 

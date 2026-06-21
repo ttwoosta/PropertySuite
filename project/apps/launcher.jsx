@@ -76,10 +76,10 @@ function Launcher({ user, onSignOut }) {
           <img src="assets/logo-mark.svg" width="34" height="34" alt="" />
           <span style={{ fontSize: 'var(--text-lg)', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-heading)' }}>Property Suite</span>
         </div>
-        <button onClick={onSignOut} title="Sign out" aria-label="Sign out"
-          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: '50%' }}>
+        <a href="Profile.html" title="Profile" aria-label="Profile"
+          style={{ display: 'flex', background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: '50%', textDecoration: 'none' }}>
           <Avatar name={user.name} size="md" />
-        </button>
+        </a>
       </header>
 
       <div className="launch-body ps-fade">
