@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profile · Property Suite</title>
+<link rel="stylesheet" href="_ds/maintenance-scheduler-design-system-02479c68-25b4-4a9d-a0b0-b79eabfdc160/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/maintenance-scheduler-design-system-02479c68-25b4-4a9d-a0b0-b79eabfdc160/tokens/colors.css">
+<link rel="stylesheet" href="_ds/maintenance-scheduler-design-system-02479c68-25b4-4a9d-a0b0-b79eabfdc160/tokens/typography.css">
+<link rel="stylesheet" href="_ds/maintenance-scheduler-design-system-02479c68-25b4-4a9d-a0b0-b79eabfdc160/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/maintenance-scheduler-design-system-02479c68-25b4-4a9d-a0b0-b79eabfdc160/tokens/radius.css">
+<link rel="stylesheet" href="_ds/maintenance-scheduler-design-system-02479c68-25b4-4a9d-a0b0-b79eabfdc160/styles.css">
+<link rel="stylesheet" href="lib/ps-app.css">
+<style>
+  .launch-top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px; border-bottom: 1px solid var(--border-default);
+    background: color-mix(in srgb, var(--surface-card) 82%, transparent);
+    backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10;
+  }
+  .prof-wrap { container-type: inline-size; }
+  .prof-body { max-width: 520px; margin: 0 auto; padding: 48px 24px 80px; }
+  @media (max-width: 560px) {
+    .launch-top { padding: 14px 18px; }
+    .prof-body { padding: 32px 18px 64px; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.456.0/dist/umd/lucide.min.js"></script>
+<script src="_ds/maintenance-scheduler-design-system-02479c68-25b4-4a9d-a0b0-b79eabfdc160/_ds_bundle.js"></script>
+<script src="lib/ps-common.js"></script>
+<script type="text/babel" src="apps/ps-ui.jsx"></script>
+<script type="text/babel" src="apps/profile.jsx"></script>
+</body>
+</html>
