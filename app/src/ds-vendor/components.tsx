@@ -62,28 +62,34 @@ export interface CardHeaderProps {
 }
 
 export interface InputProps {
-  label?: string;
+  label?: string | ReactNode;
   type?: string;
   value?: string | number;
   defaultValue?: string | number;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   placeholder?: string;
   leadingIcon?: ReactNode;
   hint?: string;
-  error?: string;
+  error?: string | null;
   min?: string | number;
   autoComplete?: string;
   autoFocus?: boolean;
+  disabled?: boolean;
+  readOnly?: boolean;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
   style?: CSSProperties;
 }
 
 export type SelectOption = string | { value: string; label: string };
 export interface SelectProps {
-  label?: string;
+  label?: string | ReactNode;
   value?: string;
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   options: SelectOption[];
+  error?: string | null;
+  disabled?: boolean;
   style?: CSSProperties;
 }
 

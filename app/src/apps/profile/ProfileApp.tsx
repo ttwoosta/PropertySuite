@@ -1,9 +1,11 @@
-// Profile page — shows the signed-in user's name, email, and sign-out.
-import { useEffect } from 'react';
+// Profile page — shows the signed-in user's name, email, currency selector, and sign-out.
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Avatar, Button, Card } from '../../ds-vendor/components';
-import { di, LucideIcon } from '../../lib/icon';
+import { di, Icon, LucideIcon } from '../../lib/icon';
 import { useAuth } from '../../lib/auth';
+import { CURRENCIES, getCurrencyCode, setCurrencyCode } from '../../lib/currency';
+import { profileReturn } from '../../lib/nav';
 
 function DetailRow({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
@@ -44,9 +46,82 @@ function DetailRow({ icon, label, value }: { icon: string; label: string; value:
   );
 }
 
+function CurrencyRow() {
+  const [code, setCode] = useState(getCurrencyCode());
+  const curr = CURRENCIES[code] ?? CURRENCIES['GBP'];
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 0' }}>
+      <span
+        style={{
+          flex: 'none',
+          width: 38,
+          height: 38,
+          borderRadius: 'var(--radius-md)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--surface-hover)',
+          color: 'var(--text-muted)',
+        }}
+      >
+        <span style={{ display: 'inline-flex', width: 18, height: 18 }}>
+          <Icon name="banknote" size={18} />
+        </span>
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="eyebrow">Default currency</div>
+        <div style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-heading)' }}>
+          {curr.label} · {curr.symbol}{code}
+        </div>
+      </div>
+      <div style={{ position: 'relative', flex: 'none' }}>
+        <select
+          value={code}
+          onChange={(e) => { const c = setCurrencyCode(e.target.value); setCode(c); }}
+          aria-label="Default currency"
+          style={{
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            font: 'inherit',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 600,
+            color: 'var(--text-heading)',
+            background: 'var(--surface-card)',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--radius-md)',
+            padding: '9px 34px 9px 13px',
+            cursor: 'pointer',
+            outline: 'none',
+          }}
+        >
+          {Object.entries(CURRENCIES).map(([k, v]) => (
+            <option key={k} value={k}>{v.symbol}  {k} — {v.label}</option>
+          ))}
+        </select>
+        <span
+          style={{
+            position: 'absolute',
+            right: 11,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            pointerEvents: 'none',
+            display: 'inline-flex',
+            width: 16,
+            height: 16,
+            color: 'var(--text-muted)',
+          }}
+        >
+          {di('chevron-down')}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function ProfileApp() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const back = profileReturn();
 
   // Force light theme on the profile page (same as launcher).
   useEffect(() => {
@@ -59,8 +134,8 @@ export function ProfileApp() {
     <div style={{ minHeight: '100dvh' }}>
       <header className="launch-top">
         <Link
-          to="/"
-          title="Back to apps"
+          to={back.path}
+          title={'Back to ' + back.label}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -70,7 +145,7 @@ export function ProfileApp() {
           }}
         >
           <span style={{ display: 'inline-flex', width: 20, height: 20 }}>{di('chevron-left')}</span>
-          <span style={{ fontSize: 'var(--text-md)', fontWeight: 600 }}>Apps</span>
+          <span style={{ fontSize: 'var(--text-md)', fontWeight: 600 }}>{back.label}</span>
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img src="/assets/logo-mark.svg" width={28} height={28} alt="" />
@@ -127,6 +202,8 @@ export function ProfileApp() {
             <DetailRow icon="user" label="Name" value={user.name} />
             <div style={{ borderTop: '1px solid var(--border-subtle)' }} />
             <DetailRow icon="mail" label="Email" value={user.email} />
+            <div style={{ borderTop: '1px solid var(--border-subtle)' }} />
+            <CurrencyRow />
           </div>
 
           <Button

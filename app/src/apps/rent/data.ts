@@ -197,5 +197,4 @@ export const catById: Record<string, Category> = Object.fromEntries(
   CATEGORIES.map((c) => [c.id, c]),
 );
 
-export const gbp = (n: number) =>
-  '£' + Math.round(Math.abs(n)).toLocaleString('en-GB');
+export { formatCurrency as gbp } from '../../lib/currency';

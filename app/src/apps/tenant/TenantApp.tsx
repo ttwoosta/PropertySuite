@@ -15,6 +15,7 @@ import {
   useToast,
 } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
+import { rememberApp } from '../../lib/nav';
 import { AIAssistant, ThreadView } from './thread';
 import {
   PROPS,
@@ -401,6 +402,7 @@ function TenantInner() {
         to="/profile"
         title="Profile"
         aria-label="Profile"
+        onClick={() => rememberApp('/tenant-bridge', 'TenantBridge')}
         style={{ display: 'flex', background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: '50%', textDecoration: 'none' }}
       >
         <Avatar name={user!.name} size="md" />

@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { Avatar } from '../ds-vendor/components';
 import { LucideIcon } from '../lib/icon';
 import { useAuth } from '../lib/auth';
+import { rememberApp } from '../lib/nav';
 import '../styles/launcher.css';
 
 interface AppDef {
@@ -75,6 +76,7 @@ export function Launcher() {
           to="/profile"
           title="Profile"
           aria-label="Profile"
+          onClick={() => rememberApp('/', 'Apps')}
           style={{
             display: 'flex',
             background: 'none',
@@ -164,8 +166,8 @@ export function Launcher() {
 
         {/* phone : icon-only grid */}
         <div className="icon-only">
-          {APPS.map((a) => (
-            <Link key={a.key} to={a.to} className="icon-cell">
+          {APPS.map((a, i) => (
+            <Link key={a.key} to={a.to} className={'icon-cell' + (i === 2 ? ' span2' : '')}>
               <span className="tile" style={{ background: a.tile.bg, color: a.tile.fg }}>
                 <span>
                   <LucideIcon name={a.icon} />

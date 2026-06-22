@@ -27,6 +27,7 @@ import {
   di,
 } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
+import { rememberApp } from '../../lib/nav';
 import {
   HISTORY,
   PROPERTIES,
@@ -1027,6 +1028,7 @@ function MaintInner() {
         to="/profile"
         title="Profile"
         aria-label="Profile"
+        onClick={() => rememberApp('/maintenance', 'Maintenance')}
         style={{ display: 'flex', background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: '50%', textDecoration: 'none' }}
       >
         <Avatar name={user!.name} size="md" />

@@ -289,6 +289,7 @@ export function RightDrawer({
   onClose,
   title,
   subtitle,
+  icon,
   children,
   footer,
   width = 420,
@@ -297,6 +298,7 @@ export function RightDrawer({
   onClose?: () => void;
   title?: ReactNode;
   subtitle?: ReactNode;
+  icon?: string;
   children?: ReactNode;
   footer?: ReactNode;
   width?: number;
@@ -348,28 +350,50 @@ export function RightDrawer({
             borderBottom: '1px solid var(--border-subtle)',
           }}
         >
-          <div>
-            <div
-              style={{
-                fontSize: 'var(--text-lg)',
-                fontWeight: 700,
-                color: 'var(--text-heading)',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              {title}
-            </div>
-            {subtitle ? (
-              <div
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+            {icon ? (
+              <span
                 style={{
-                  fontSize: 'var(--text-sm)',
-                  color: 'var(--text-muted)',
-                  marginTop: 3,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 38,
+                  height: 38,
+                  flex: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--brand-tint)',
+                  color: 'var(--brand-on-tint)',
                 }}
               >
-                {subtitle}
-              </div>
+                <Icon name={icon} size={19} />
+              </span>
             ) : null}
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 'var(--text-lg)',
+                  fontWeight: 700,
+                  color: 'var(--text-heading)',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                {title}
+              </div>
+              {subtitle ? (
+                <div
+                  style={{
+                    fontSize: 'var(--text-sm)',
+                    color: 'var(--text-muted)',
+                    marginTop: 2,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {subtitle}
+                </div>
+              ) : null}
+            </div>
           </div>
           <IconButton label="Close" variant="ghost" onClick={onClose}>
             {di('x')}
