@@ -19,14 +19,47 @@ function DetailRow({ icon, label, value }) {
   );
 }
 
+function CurrencyRow() {
+  const [code, setCode] = useState(window.PS.Currency.code());
+  const list = window.PS.Currency.list;
+  useEffect(() => { window.PS.icons(); });
+  const onChange = (e) => { setCode(window.PS.Currency.set(e.target.value)); };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 0' }}>
+      <span style={{ flex: 'none', width: 38, height: 38, borderRadius: 'var(--radius-md)', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+        <span style={{ display: 'inline-flex', width: 18, height: 18 }}><i data-lucide="banknote"></i></span>
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="eyebrow">Default currency</div>
+        <div style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-heading)' }}>
+          {list[code].label} · {list[code].symbol}{code}</div>
+      </div>
+      <div style={{ position: 'relative', flex: 'none' }}>
+        <select value={code} onChange={onChange} aria-label="Default currency"
+          style={{ appearance: 'none', WebkitAppearance: 'none', font: 'inherit', fontSize: 'var(--text-sm)', fontWeight: 600,
+            color: 'var(--text-heading)', background: 'var(--surface-card)', border: '1px solid var(--border-default)',
+            borderRadius: 'var(--radius-md)', padding: '9px 34px 9px 13px', cursor: 'pointer', outline: 'none' }}>
+          {Object.keys(list).map(k => (
+            <option key={k} value={k}>{list[k].symbol}  {k} — {list[k].label}</option>
+          ))}
+        </select>
+        <span style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none',
+          display: 'inline-flex', width: 16, height: 16, color: 'var(--text-muted)' }}><i data-lucide="chevron-down"></i></span>
+      </div>
+    </div>
+  );
+}
+
 function Profile({ user, onSignOut }) {
+  const back = window.PS.profileReturn();
   return (
     <div className="prof-wrap" style={{ minHeight: '100dvh' }}>
       <header className="launch-top">
-        <a href="Property Suite.html" title="Back to apps"
+        <a href={back.href} title={'Back to ' + back.label}
           style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none', color: 'var(--text-body)' }}>
           <span style={{ display: 'inline-flex', width: 20, height: 20 }}><i data-lucide="chevron-left"></i></span>
-          <span style={{ fontSize: 'var(--text-md)', fontWeight: 600 }}>Apps</span>
+          <span style={{ fontSize: 'var(--text-md)', fontWeight: 600 }}>{back.label}</span>
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img src="assets/logo-mark.svg" width="28" height="28" alt="" />
@@ -51,6 +84,8 @@ function Profile({ user, onSignOut }) {
             <DetailRow icon="user" label="Name" value={user.name} />
             <div style={{ borderTop: '1px solid var(--border-subtle)' }} />
             <DetailRow icon="mail" label="Email" value={user.email} />
+            <div style={{ borderTop: '1px solid var(--border-subtle)' }} />
+            <CurrencyRow />
           </div>
 
           <Button variant="secondary" fullWidth leadingIcon={<i data-lucide="log-out"></i>} onClick={onSignOut}

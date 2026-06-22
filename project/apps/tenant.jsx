@@ -190,7 +190,7 @@ function TenantApp() {
         </h1>
       </div>
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
-      <a href="Profile.html" title="Profile" aria-label="Profile"
+      <a href="Profile.html" title="Profile" aria-label="Profile" onClick={() => window.PS.rememberApp()}
         style={{ display: 'flex', background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: '50%', textDecoration: 'none' }}>
         <TAv name={user.name} size="md" />
       </a>

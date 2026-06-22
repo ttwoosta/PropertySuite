@@ -135,7 +135,7 @@ function Modal({ open, onClose, title, subtitle, children, footer, width = 460 }
 }
 
 /* ---- right-side drawer (slide-in panel) ---- */
-function RightDrawer({ open, onClose, title, subtitle, children, footer, width = 420 }) {
+function RightDrawer({ open, onClose, title, subtitle, icon, children, footer, width = 420 }) {
   useEffect(() => {
     if (!open) return;
     const h = (e) => e.key === 'Escape' && onClose && onClose();
@@ -146,15 +146,23 @@ function RightDrawer({ open, onClose, title, subtitle, children, footer, width =
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, pointerEvents: open ? 'auto' : 'none' }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(24,28,26,0.32)',
         opacity: open ? 1 : 0, transition: 'opacity var(--dur-base) var(--ease-out)' }}></div>
-      <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: width,
+      <div className="ps-drawer-panel" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: width,
         background: 'var(--surface-card)', borderLeft: '1px solid var(--border-default)', boxShadow: 'var(--shadow-lg)',
         transform: open ? 'none' : 'translateX(100%)', transition: 'transform var(--dur-slow) var(--ease-out)',
         display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
           padding: '20px 22px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
-          <div>
-            <div style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-heading)', letterSpacing: '-0.01em' }}>{title}</div>
-            {subtitle ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginTop: 3 }}>{subtitle}</div> : null}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+            {icon ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38,
+                flex: 'none', borderRadius: 'var(--radius-md)', background: 'var(--brand-tint)', color: 'var(--brand-on-tint)' }}>
+                <span style={{ display: 'inline-flex', width: 19, height: 19 }}><i data-lucide={icon}></i></span>
+              </span>
+            ) : null}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-heading)', letterSpacing: '-0.01em' }}>{title}</div>
+              {subtitle ? <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</div> : null}
+            </div>
           </div>
           <IconButton label="Close" variant="ghost" onClick={onClose}>{di('x')}</IconButton>
         </div>

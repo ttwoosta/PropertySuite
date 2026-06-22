@@ -76,7 +76,7 @@ function Launcher({ user, onSignOut }) {
           <img src="assets/logo-mark.svg" width="34" height="34" alt="" />
           <span style={{ fontSize: 'var(--text-lg)', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-heading)' }}>Property Suite</span>
         </div>
-        <a href="Profile.html" title="Profile" aria-label="Profile"
+        <a href="Profile.html" title="Profile" aria-label="Profile" onClick={() => window.PS.rememberApp()}
           style={{ display: 'flex', background: 'none', border: 'none', padding: 0, cursor: 'pointer', borderRadius: '50%', textDecoration: 'none' }}>
           <Avatar name={user.name} size="md" />
         </a>
@@ -107,8 +107,8 @@ function Launcher({ user, onSignOut }) {
 
         {/* phone : icon-only grid */}
         <div className="icon-only">
-          {APPS.map(a => (
-            <a key={a.key} href={a.href} className="icon-cell">
+          {APPS.map((a, i) => (
+            <a key={a.key} href={a.href} className={'icon-cell' + (i === 2 ? ' span2' : '')}>
               <span className="tile" style={{ background: a.tile.bg, color: a.tile.fg }}>
                 <span><i data-lucide={a.icon}></i></span>
               </span>
