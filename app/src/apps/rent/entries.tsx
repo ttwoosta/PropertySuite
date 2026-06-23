@@ -15,15 +15,9 @@ import {
   fieldLabel,
   useOpenReset,
 } from './forms';
-import { MONTH_NAMES, CATEGORIES, type House, type Receipt } from './data';
+import { MONTH_NAMES, CATEGORIES, type House, type ReceiptWithKind } from './data';
 
-/* ---- extended receipt type (with kind/url added at runtime) ---- */
-export interface ReceiptWithKind extends Receipt {
-  kind: 'img' | 'pdf' | 'other';
-  url?: string | null;
-  notes?: string;
-  dateLong?: string;
-}
+export type { ReceiptWithKind };
 
 /* ---- expense categories for the wizard ---- */
 const ECATS = [

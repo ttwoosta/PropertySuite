@@ -42,7 +42,7 @@ if (firebaseConfigured) {
   typeof window !== 'undefined' && ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
 
   if (isLocalDevelopment) {
-    dbInstance = getFirestore(app, 'db_local');
+    dbInstance = getFirestore(app);
 
     connectFirestoreEmulator(dbInstance, '127.0.0.1', 9000);
     connectAuthEmulator(authInstance, 'http://127.0.0.1:9099', { disableWarnings: false });

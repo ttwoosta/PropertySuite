@@ -30,22 +30,26 @@ import {
   CATEGORIES,
   EXP_MONTH,
   EXP_YTD,
-  GRID,
-  HOUSES,
   MONTHS,
   MONTH_NAMES,
   NAV,
-  RECEIPTS,
-  ROOM_COLS,
   SERIES,
   catById,
+  emptyGrid,
   gbp,
+  gridRow,
+  useHouses,
+  useReceipts,
+  dbAddHouse,
+  dbSaveRoom,
+  dbAddReceipt,
   type GridRow,
   type House,
-  type Receipt,
+  type RoomCol,
   type Room,
   type RoomStatus,
 } from './data';
+import { firebaseConfigured } from '../../lib/firebase';
 import { AddHouseDrawer, EditRoomDrawer, AddRentDrawer, type AddRentCtx } from './forms';
 import {
   EntryWizard,
@@ -97,10 +101,6 @@ const menuItem = (on: boolean): CSSProperties => ({
 
 type ToastFn = (msg: string, tone?: 'success' | 'danger') => void;
 
-/* ---- receipt kind map for initial state ---- */
-const RKIND: Record<string, ReceiptWithKind['kind']> = {
-  r1: 'pdf', r2: 'img', r3: 'img', r4: 'pdf', r5: 'pdf', r6: 'img',
-};
 
 /* ---------------- Dashboard ---------------- */
 function Dashboard() {
@@ -201,8 +201,8 @@ function Dashboard() {
 
 /* ---------------- Year Grid ---------------- */
 function YearGrid({ house, year, toast }: { house: House; year: number; toast: ToastFn }) {
-  const cols = ROOM_COLS.filter((c) => c.house === house.name);
-  const [grid, setGrid] = useState<GridRow[]>(() => GRID.map((r) => ({ ...r, rent: { ...r.rent } })));
+  const cols: RoomCol[] = house.rooms.map((r) => ({ id: r.id, label: r.unit, house: house.name }));
+  const [grid, setGrid] = useState<GridRow[]>(() => emptyGrid(cols));
   const [edit, setEdit] = useState<{ row: number; key: string } | null>(null);
   const [filter, setFilter] = useState('all');
   const [dense, setDense] = useState(false);
@@ -218,9 +218,7 @@ function YearGrid({ house, year, toast }: { house: House; year: number; toast: T
         const n = val === '' ? null : Number(val) || 0;
         if (key.startsWith('rent.')) nr.rent[key.slice(5)] = n;
         else (nr as unknown as Record<string, number | null>)[key] = n;
-        const rentTotal =
-          cols.reduce((s, c) => s + (nr.rent[c.id] || 0), 0) +
-          ROOM_COLS.filter((c) => c.house !== house.name).reduce((s, c) => s + (nr.rent[c.id] || 0), 0);
+        const rentTotal = cols.reduce((s, c) => s + (nr.rent[c.id] || 0), 0);
         const e = (nr.tax || 0) + (nr.water || 0) + (nr.elec || 0) + (nr.gas || 0) + (nr.maint || 0) + (nr.loan || 0);
         nr.rentTotal = rentTotal;
         nr.net = rentTotal - e;
@@ -582,12 +580,10 @@ function RentInner() {
   const [periodOpen, setPeriodOpen] = useState(false);
   const toast = useToast();
 
-  // mutable domain state
-  const [houses, setHouses] = useState<House[]>(() => HOUSES.map((h) => ({ ...h, rooms: h.rooms.map((r) => ({ ...r })) })));
-  const [receipts, setReceipts] = useState<ReceiptWithKind[]>(() =>
-    RECEIPTS.map((r) => ({ ...r, kind: RKIND[r.id] ?? 'img' })),
-  );
-  const [links, setLinks] = useState<Record<string, string>>({ 'gas-5': 'r1', 'water-5': 'r2', 'maint-4': 'r3' });
+  // Firestore-backed domain state (falls back to seed data in demo mode)
+  const { houses, setHouses } = useHouses();
+  const { receipts, setReceipts } = useReceipts();
+  const [links, setLinks] = useState<Record<string, string>>({});
   const [vals, setVals] = useState<Record<string, number>>({});
 
   // dialog controllers
@@ -609,12 +605,18 @@ function RentInner() {
   const linkedIds = Object.values(links);
   const unlinked = receipts.filter((r) => !linkedIds.includes(r.id));
 
-  const updateRoom = (room: Room) =>
-    setHouses((hs) =>
-      hs.map((h) =>
-        h.id !== houseId ? h : { ...h, rooms: h.rooms.map((r) => (r.id === room.id ? room : r)) },
-      ),
-    );
+  const updateRoom = async (room: Room) => {
+    const targetHouse = houses.find((h) => h.id === houseId);
+    if (!targetHouse) return;
+    const updatedRooms = targetHouse.rooms.map((r) => (r.id === room.id ? room : r));
+    if (firebaseConfigured && user) {
+      await dbSaveRoom(user.uid, houseId, updatedRooms);
+    } else {
+      setHouses((hs) =>
+        hs.map((h) => (h.id !== houseId ? h : { ...h, rooms: updatedRooms })),
+      );
+    }
+  };
 
   const sidebar = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -679,7 +681,7 @@ function RentInner() {
   return (
     <ResponsiveShell sidebar={sidebar} topBar={topBar}>
       {view === 'home' && <Dashboard />}
-      {view === 'grid' && house && <YearGrid house={house} year={year} toast={toast} />}
+      {view === 'grid' && house && <YearGrid key={house.id} house={house} year={year} toast={toast} />}
       {view === 'houses' && house && (
         <Houses
           house={house}
@@ -708,19 +710,29 @@ function RentInner() {
       <AddHouseDrawer
         open={addHouse}
         onClose={() => setAddHouse(false)}
-        onSave={(p) => {
-          const id = 'h' + Math.random().toString(36).slice(2, 6);
+        onSave={async (p) => {
+          const tempId = 'h' + Math.random().toString(36).slice(2, 6);
           const rooms: Room[] = Array.from({ length: p.rooms }, (_, k) => ({
-            id: id + 'r' + k,
+            id: tempId + 'r' + k,
             unit: 'Room ' + (k + 1),
             tenant: null,
             rent: p.rent,
             paid: 0,
-            status: 'Vacant',
+            status: 'Vacant' as RoomStatus,
             beds: 1,
           }));
-          setHouses((hs) => [...hs, { id, name: p.address.split(',')[0], address: p.address, rooms }]);
-          setHouseId(id);
+          const newHouse: Omit<House, 'id'> = {
+            name: p.address.split(',')[0],
+            address: p.address,
+            rooms,
+          };
+          if (firebaseConfigured && user) {
+            const id = await dbAddHouse(user.uid, newHouse);
+            setHouseId(id);
+          } else {
+            setHouses((hs) => [...hs, { ...newHouse, id: tempId }]);
+            setHouseId(tempId);
+          }
           setAddHouse(false);
           toast('House added · ' + p.rooms + ' rooms');
         }}
@@ -731,14 +743,14 @@ function RentInner() {
         room={editRoom}
         houseName={house?.name ?? ''}
         onClose={() => setEditRoom(null)}
-        onSave={(room) => { updateRoom(room); setEditRoom(null); toast('Room saved'); }}
+        onSave={async (room) => { await updateRoom(room); setEditRoom(null); toast('Room saved'); }}
       />
 
       {/* 3 · Add rent */}
       <AddRentDrawer
         ctx={addRent}
         onClose={() => setAddRent(null)}
-        onSave={(room) => { updateRoom(room); setAddRent(null); toast('Rent recorded'); }}
+        onSave={async (room) => { await updateRoom(room); setAddRent(null); toast('Rent recorded'); }}
       />
 
       {/* 4 · Add / edit entry */}
@@ -759,8 +771,12 @@ function RentInner() {
         open={upload}
         houses={houses}
         onClose={() => setUpload(false)}
-        onUpload={(rc: UploadedReceipt) => {
-          setReceipts((rs) => [{ ...rc }, ...rs]);
+        onUpload={async (rc: UploadedReceipt) => {
+          if (firebaseConfigured && user) {
+            await dbAddReceipt(user.uid, rc);
+          } else {
+            setReceipts((rs) => [{ ...rc }, ...rs]);
+          }
           setUpload(false);
           toast('Receipt uploaded');
         }}

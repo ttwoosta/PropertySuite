@@ -1,0 +1,15 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // All user files live under users/{uid}/ — only the owner may access them.
+    // Expected layout:
+    //   users/{uid}/receipts/{filename}
+    //   users/{uid}/prep-photos/{taskId}/{filename}
+    match /users/{uid}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+  }
+}
