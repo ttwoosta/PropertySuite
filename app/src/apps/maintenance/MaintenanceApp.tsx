@@ -42,7 +42,6 @@ import {
   type Property,
   type Recurrence,
   type Task,
-  type TaskFormData,
 } from './data';
 import { RecurrenceEditor, SmartPlan, TaskEditor } from './editors';
 
@@ -796,154 +795,64 @@ function HistoryScreen({ tasks, prop }: { tasks: Task[]; prop: Property }) {
   );
 }
 
-/* ---------- Sidebar ---------- */
-function Sidebar({
-  properties,
-  propId,
-  onProp,
-  view,
-  onView,
-  theme,
-  onToggleTheme,
+/* ---------- Sidebar helpers ---------- */
+function MaintNav({
+  v,
+  active,
+  onClick,
 }: {
-  properties: Property[];
-  propId: string;
-  onProp: (id: string) => void;
-  view: string;
-  onView: (id: string) => void;
-  theme: string;
-  onToggleTheme: () => void;
+  v: { id: string; label: string; icon: string };
+  active: boolean;
+  onClick: (id: string) => void;
 }) {
   const { close } = useDrawer();
-  const pick = <T,>(fn: (v: T) => void, v: T) => {
-    fn(v);
-    close();
-  };
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div
-        style={{
-          padding: '18px 16px 14px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <Link
-          to="/"
-          title="Back to launcher"
-          style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}
-        >
-          <img src="/assets/logo-mark.svg" width={30} height={30} alt="" />
-          <span
-            style={{
-              fontSize: 'var(--text-md)',
-              fontWeight: 700,
-              letterSpacing: '-0.01em',
-              color: 'var(--text-heading)',
-            }}
-          >
-            Maintenance
-          </span>
-        </Link>
-      </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '6px 12px 12px' }}>
-        <div className="eyebrow" style={{ padding: '10px 8px 7px' }}>
-          Property
-        </div>
-        <div role="listbox" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {properties.map((p) => {
-            const on = p.id === propId;
-            return (
-              <button
-                key={p.id}
-                role="option"
-                aria-selected={on}
-                onClick={() => pick(onProp, p.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  width: '100%',
-                  padding: '9px 10px',
-                  border: 'none',
-                  borderRadius: 'var(--radius-md)',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  background: on ? 'var(--surface-active-nav)' : 'transparent',
-                  color: on ? 'var(--brand-on-tint)' : 'var(--text-body)',
-                  fontSize: 'var(--text-base)',
-                  fontWeight: on ? 600 : 500,
-                }}
-              >
-                <span
-                  style={{
-                    width: 9,
-                    height: 9,
-                    borderRadius: '50%',
-                    background: p.color,
-                    flex: 'none',
-                  }}
-                />
-                <span
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {p.name}
-                </span>
-                {on && <Icon name="check" size={15} style={{ color: 'var(--brand)' }} />}
-              </button>
-            );
-          })}
-        </div>
+    <NavItem
+      icon={di(v.icon)}
+      label={v.label}
+      active={active}
+      onClick={() => { onClick(v.id); close(); }}
+    />
+  );
+}
 
-        <div className="eyebrow" style={{ padding: '18px 8px 7px' }}>
-          Views
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {VIEWS.map((vw) => (
-            <NavItem
-              key={vw.id}
-              icon={di(vw.icon)}
-              label={vw.label}
-              active={view === vw.id}
-              onClick={() => pick(onView, vw.id)}
-            />
-          ))}
-        </div>
-      </div>
-      <div style={{ padding: 12, borderTop: '1px solid var(--border-subtle)' }}>
-        <button
-          onClick={onToggleTheme}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            width: '100%',
-            padding: '9px 12px',
-            border: 'none',
-            borderRadius: 'var(--radius-md)',
-            cursor: 'pointer',
-            background: 'transparent',
-            color: 'var(--text-body)',
-            fontSize: 'var(--text-base)',
-            fontWeight: 500,
-          }}
-        >
-          <Icon
-            name={theme === 'dark' ? 'sun' : 'moon'}
-            size={18}
-            style={{ color: 'var(--text-muted)' }}
-          />
-          {theme === 'dark' ? 'Light theme' : 'Dark theme'}
-        </button>
-      </div>
-    </div>
+function PropBtn({
+  p,
+  active,
+  onProp,
+}: {
+  p: Property;
+  active: boolean;
+  onProp: (id: string) => void;
+}) {
+  const { close } = useDrawer();
+  return (
+    <button
+      role="option"
+      aria-selected={active}
+      onClick={() => { onProp(p.id); close(); }}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        width: '100%',
+        padding: '9px 10px',
+        border: 'none',
+        borderRadius: 'var(--radius-md)',
+        cursor: 'pointer',
+        textAlign: 'left',
+        background: active ? 'var(--surface-active-nav)' : 'transparent',
+        color: active ? 'var(--brand-on-tint)' : 'var(--text-body)',
+        fontSize: 'var(--text-base)',
+        fontWeight: active ? 600 : 500,
+      }}
+    >
+      <span style={{ width: 9, height: 9, borderRadius: '50%', background: p.color, flex: 'none' }} />
+      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {p.name}
+      </span>
+      {active && <Icon name="check" size={15} style={{ color: 'var(--brand)' }} />}
+    </button>
   );
 }
 
@@ -972,11 +881,6 @@ function MaintInner() {
 
   const prop = PROPERTIES.find((p) => p.id === propId)!;
 
-  const saveTask = (data: TaskFormData) => {
-    persistTask(data);
-    toast(data.id ? 'Task updated' : 'Task added');
-    setEditing(null);
-  };
   const deleteTask = (id: string) => {
     persistDelete(id);
     toast('Task deleted', 'danger');
@@ -991,15 +895,55 @@ function MaintInner() {
   const v = VIEWS.find((x) => x.id === view)!;
 
   const sidebar = (
-    <Sidebar
-      properties={PROPERTIES}
-      propId={propId}
-      onProp={setPropId}
-      view={view}
-      onView={setView}
-      theme={theme}
-      onToggleTheme={toggleTheme}
-    />
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div
+        style={{
+          padding: '18px 16px 14px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <Link
+          to="/"
+          title="Back to launcher"
+          style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}
+        >
+          <img src="/assets/logo-mark.svg" width={30} height={30} alt="" />
+          <span style={{ fontSize: 'var(--text-md)', fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--text-heading)' }}>
+            Maintenance
+          </span>
+        </Link>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '6px 12px 12px' }}>
+        <div className="eyebrow" style={{ padding: '10px 8px 7px' }}>Property</div>
+        <div role="listbox" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {PROPERTIES.map((p) => (
+            <PropBtn key={p.id} p={p} active={p.id === propId} onProp={setPropId} />
+          ))}
+        </div>
+        <div className="eyebrow" style={{ padding: '18px 8px 7px' }}>Views</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {VIEWS.map((vw) => (
+            <MaintNav key={vw.id} v={vw} active={view === vw.id} onClick={setView} />
+          ))}
+        </div>
+      </div>
+      <div style={{ padding: 12, borderTop: '1px solid var(--border-subtle)' }}>
+        <button
+          onClick={toggleTheme}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+            padding: '9px 12px', border: 'none', borderRadius: 'var(--radius-md)',
+            cursor: 'pointer', background: 'transparent', color: 'var(--text-body)',
+            fontSize: 'var(--text-base)', fontWeight: 500,
+          }}
+        >
+          <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} style={{ color: 'var(--text-muted)' }} />
+          {theme === 'dark' ? 'Light theme' : 'Dark theme'}
+        </button>
+      </div>
+    </div>
   );
 
   const topBar = (
@@ -1100,7 +1044,7 @@ function MaintInner() {
           task={editing === 'new' ? null : editing}
           defaultProp={propId}
           onClose={() => setEditing(null)}
-          onSave={saveTask}
+          _saveTask={async (data) => { persistTask(data); toast(data.id ? 'Task updated' : 'Task added'); }}
           onDelete={deleteTask}
         />
       )}

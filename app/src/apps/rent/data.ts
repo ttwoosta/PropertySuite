@@ -1,20 +1,13 @@
-// Rent Tracker — types, static config, and Firestore service layer.
+// Rent Tracker — types, static config, seed data, pure helpers, and React hooks.
+// All Firestore I/O lives in src/lib/rentService.ts.
 import { useEffect, useState } from 'react';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  limit,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { db, firebaseConfigured } from '../../lib/firebase';
+import { firebaseConfigured } from '../../lib/firebase';
 import { useAuth } from '../../lib/auth';
+import {
+  subscribeHouses,
+  subscribeReceipts,
+  subscribeRentEntries,
+} from '../../lib/rentService';
 
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -152,7 +145,7 @@ export const SEED_HOUSES: House[] = [
   },
 ];
 
-const SEED_RECEIPTS: ReceiptWithKind[] = [
+export const SEED_RECEIPTS: ReceiptWithKind[] = [
   { id: 'r1', merchant: 'British Gas', cat: 'gas', date: '4 Jun 2026', amount: 142, kind: 'pdf' },
   { id: 'r2', merchant: 'Yorkshire Water', cat: 'water', date: '2 Jun 2026', amount: 96, kind: 'img' },
   { id: 'r3', merchant: 'PlumbPro Ltd', cat: 'maint', date: '28 May 2026', amount: 615, kind: 'img' },
@@ -160,123 +153,6 @@ const SEED_RECEIPTS: ReceiptWithKind[] = [
   { id: 'r5', merchant: 'Leeds City Council', cat: 'tax', date: '12 May 2026', amount: 540, kind: 'pdf' },
   { id: 'r6', merchant: 'Halifax Mortgage', cat: 'loan', date: '1 May 2026', amount: 724, kind: 'img' },
 ];
-
-// ── Firestore collection helpers ──────────────────────────────────────────────
-
-function housesCol(uid: string) {
-  return collection(db!, 'users', uid, 'rent_houses');
-}
-
-function houseDoc(uid: string, houseId: string) {
-  return doc(db!, 'users', uid, 'rent_houses', houseId);
-}
-
-function receiptsCol(uid: string) {
-  return collection(db!, 'users', uid, 'rent_receipts');
-}
-
-function receiptDoc(uid: string, receiptId: string) {
-  return doc(db!, 'users', uid, 'rent_receipts', receiptId);
-}
-
-// ── Houses hook ───────────────────────────────────────────────────────────────
-
-export interface HousesState {
-  houses: House[];
-  loading: boolean;
-  /** Only used in demo mode (no Firestore) — mutates local state directly. */
-  setHouses: React.Dispatch<React.SetStateAction<House[]>>;
-}
-
-export function useHouses(): HousesState {
-  const { user } = useAuth();
-  const [houses, setHouses] = useState<House[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) return;
-
-    if (!firebaseConfigured || !db) {
-      setHouses(SEED_HOUSES.map((h) => ({ ...h, rooms: h.rooms.map((r) => ({ ...r })) })));
-      setLoading(false);
-      return;
-    }
-
-    const unsub = onSnapshot(
-      query(housesCol(user.uid), orderBy('createdAt')),
-      (snap) => {
-        setHouses(snap.docs.map((d) => ({ ...(d.data() as Omit<House, 'id'>), id: d.id })));
-        setLoading(false);
-      },
-      (err) => { console.error('[rent] houses snapshot error', err); setLoading(false); },
-    );
-    return unsub;
-  }, [user?.uid]);
-
-  return { houses, setHouses, loading };
-}
-
-// ── House CRUD ────────────────────────────────────────────────────────────────
-
-export async function dbAddHouse(uid: string, house: Omit<House, 'id'>): Promise<string> {
-  const ref = await addDoc(housesCol(uid), { ...house, createdAt: serverTimestamp() });
-  return ref.id;
-}
-
-export async function dbSaveRoom(uid: string, houseId: string, rooms: Room[]): Promise<void> {
-  await updateDoc(houseDoc(uid, houseId), { rooms });
-}
-
-export async function dbDeleteHouse(uid: string, houseId: string): Promise<void> {
-  await deleteDoc(houseDoc(uid, houseId));
-}
-
-// ── Receipts hook ─────────────────────────────────────────────────────────────
-
-export interface ReceiptsState {
-  receipts: ReceiptWithKind[];
-  loading: boolean;
-  setReceipts: React.Dispatch<React.SetStateAction<ReceiptWithKind[]>>;
-}
-
-export function useReceipts(): ReceiptsState {
-  const { user } = useAuth();
-  const [receipts, setReceipts] = useState<ReceiptWithKind[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) return;
-
-    if (!firebaseConfigured || !db) {
-      setReceipts(SEED_RECEIPTS.map((r) => ({ ...r })));
-      setLoading(false);
-      return;
-    }
-
-    const unsub = onSnapshot(
-      query(receiptsCol(user.uid), orderBy('createdAt', 'desc')),
-      (snap) => {
-        setReceipts(snap.docs.map((d) => ({ ...(d.data() as Omit<ReceiptWithKind, 'id'>), id: d.id })));
-        setLoading(false);
-      },
-      (err) => { console.error('[rent] receipts snapshot error', err); setLoading(false); },
-    );
-    return unsub;
-  }, [user?.uid]);
-
-  return { receipts, setReceipts, loading };
-}
-
-// ── Receipt CRUD ──────────────────────────────────────────────────────────────
-
-export async function dbAddReceipt(uid: string, rc: Omit<ReceiptWithKind, 'id'>): Promise<string> {
-  const ref = await addDoc(receiptsCol(uid), { ...rc, createdAt: serverTimestamp() });
-  return ref.id;
-}
-
-export async function dbDeleteReceipt(uid: string, receiptId: string): Promise<void> {
-  await deleteDoc(receiptDoc(uid, receiptId));
-}
 
 // ── Rent entry types ──────────────────────────────────────────────────────────
 
@@ -315,17 +191,63 @@ export const SEED_RENT_ENTRIES: RentEntry[] = SEED_HOUSES.flatMap((h) =>
     })),
 );
 
-// ── Rent entry Firestore helpers ──────────────────────────────────────────────
+// ── Hooks ─────────────────────────────────────────────────────────────────────
 
-function rentEntriesCol(uid: string) {
-  return collection(db!, 'users', uid, 'rent_entries');
+export interface HousesState {
+  houses: House[];
+  loading: boolean;
+  setHouses: React.Dispatch<React.SetStateAction<House[]>>;
 }
 
-function rentEntryDoc(uid: string, entryId: string) {
-  return doc(db!, 'users', uid, 'rent_entries', entryId);
+export function useHouses(): HousesState {
+  const { user } = useAuth();
+  const [houses, setHouses] = useState<House[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!firebaseConfigured) {
+      setHouses(SEED_HOUSES.map((h) => ({ ...h, rooms: h.rooms.map((r) => ({ ...r })) })));
+      setLoading(false);
+      return;
+    }
+    return subscribeHouses(
+      user.uid,
+      (data) => { setHouses(data); setLoading(false); },
+      (err) => { console.error('[rent] houses snapshot error', err); setLoading(false); },
+    );
+  }, [user?.uid]);
+
+  return { houses, setHouses, loading };
 }
 
-// ── Rent entries hook ─────────────────────────────────────────────────────────
+export interface ReceiptsState {
+  receipts: ReceiptWithKind[];
+  loading: boolean;
+  setReceipts: React.Dispatch<React.SetStateAction<ReceiptWithKind[]>>;
+}
+
+export function useReceipts(): ReceiptsState {
+  const { user } = useAuth();
+  const [receipts, setReceipts] = useState<ReceiptWithKind[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!firebaseConfigured) {
+      setReceipts(SEED_RECEIPTS.map((r) => ({ ...r })));
+      setLoading(false);
+      return;
+    }
+    return subscribeReceipts(
+      user.uid,
+      (data) => { setReceipts(data); setLoading(false); },
+      (err) => { console.error('[rent] receipts snapshot error', err); setLoading(false); },
+    );
+  }, [user?.uid]);
+
+  return { receipts, setReceipts, loading };
+}
 
 export interface RentEntriesState {
   entries: RentEntry[];
@@ -340,8 +262,7 @@ export function useRentEntries(houseId?: string): RentEntriesState {
 
   useEffect(() => {
     if (!user) return;
-
-    if (!firebaseConfigured || !db) {
+    if (!firebaseConfigured) {
       const seed = houseId
         ? SEED_RENT_ENTRIES.filter((e) => e.houseId === houseId)
         : SEED_RENT_ENTRIES;
@@ -349,40 +270,13 @@ export function useRentEntries(houseId?: string): RentEntriesState {
       setLoading(false);
       return;
     }
-
-    const q = houseId
-      ? query(rentEntriesCol(user.uid), where('houseId', '==', houseId), orderBy('createdAt', 'desc'))
-      : query(rentEntriesCol(user.uid), orderBy('createdAt', 'desc'), limit(50));
-
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setEntries(snap.docs.map((d) => ({ ...(d.data() as Omit<RentEntry, 'id'>), id: d.id })));
-        setLoading(false);
-      },
+    return subscribeRentEntries(
+      user.uid,
+      houseId,
+      (data) => { setEntries(data); setLoading(false); },
       (err) => { console.error('[rent] entries snapshot error', err); setLoading(false); },
     );
-    return unsub;
   }, [user?.uid, houseId]);
 
   return { entries, setEntries, loading };
-}
-
-// ── Rent entry CRUD ───────────────────────────────────────────────────────────
-
-export async function dbAddRentEntry(uid: string, entry: Omit<RentEntry, 'id'>): Promise<string> {
-  const ref = await addDoc(rentEntriesCol(uid), { ...entry, createdAt: serverTimestamp() });
-  return ref.id;
-}
-
-export async function dbUpdateRentEntry(
-  uid: string,
-  entryId: string,
-  data: Partial<Omit<RentEntry, 'id'>>,
-): Promise<void> {
-  await updateDoc(rentEntryDoc(uid, entryId), { ...data, updatedAt: serverTimestamp() });
-}
-
-export async function dbDeleteRentEntry(uid: string, entryId: string): Promise<void> {
-  await deleteDoc(rentEntryDoc(uid, entryId));
 }

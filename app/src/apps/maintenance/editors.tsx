@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button, Card, Input, Select } from '../../ds-vendor/components';
 import { Modal, Segmented } from '../../components/ui';
 import { di } from '../../lib/icon';
+import { useTaskForm } from '../../hooks/useTaskForm';
 import {
   ICONS,
   PROPERTIES,
@@ -38,14 +39,14 @@ export function TaskEditor({
   task,
   defaultProp,
   onClose,
-  onSave,
   onDelete,
+  _saveTask = async () => {},
 }: {
   task: Task | null;
   defaultProp: string;
   onClose: () => void;
-  onSave: (data: TaskFormData) => void;
   onDelete: (id: string) => void;
+  _saveTask?: (data: TaskFormData) => Promise<void>;
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const [f, setF] = useState<TaskFormData>(() =>
@@ -74,11 +75,13 @@ export function TaskEditor({
           startDate: today,
         },
   );
+  const { busy, submit } = useTaskForm({ saveTask: _saveTask });
   const set = <K extends keyof TaskFormData>(k: K, v: TaskFormData[K]) =>
     setF((s) => ({ ...s, [k]: v }));
-  const save = () => {
+  const save = async () => {
     if (!f.name.trim()) return;
-    onSave({ ...f, id: task ? task.id : undefined });
+    const ok = await submit({ ...f, id: task ? task.id : undefined });
+    if (ok) onClose();
   };
 
   return (
@@ -117,8 +120,8 @@ export function TaskEditor({
             <Button variant="secondary" onClick={onClose}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={save}>
-              Save
+            <Button variant="primary" disabled={busy} onClick={save}>
+              {busy ? 'Saving…' : 'Save'}
             </Button>
           </div>
         </div>

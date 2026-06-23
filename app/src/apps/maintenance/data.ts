@@ -1,22 +1,16 @@
-// Maintenance Scheduler — mock data, helpers, and Firestore-backed task hook.
+// Maintenance Scheduler — types, seed data, pure helpers, and Firestore-backed hook.
+// All raw Firestore I/O lives in src/lib/maintenanceService.ts.
 import { useEffect, useRef, useState } from 'react';
+import { firebaseConfigured } from '../../lib/firebase';
 import {
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  onSnapshot,
-  setDoc,
-  updateDoc,
-  writeBatch,
-} from 'firebase/firestore';
-import { db, firebaseConfigured } from '../../lib/firebase';
+  subscribeTasksFS,
+  seedTasksIfEmpty,
+  saveTaskFS,
+  deleteTaskFS,
+  updateTaskFieldsFS,
+} from '../../lib/maintenanceService';
 //
 // Firestore path: users/{uid}/tasks/{taskId}
-// Required security rule:
-//   match /users/{uid}/tasks/{taskId} {
-//     allow read, write: if request.auth != null && request.auth.uid == uid;
-//   }
 export interface Property {
   id: string;
   name: string;
@@ -57,7 +51,6 @@ export const PROPERTIES: Property[] = [
   { id: 'park', name: 'Flat 2, Park View', short: 'Park View', color: 'var(--blue-400)' },
 ];
 
-// icon + tint palette offered in the editor
 export const ICONS = [
   'flame', 'bell-ring', 'shield-check', 'zap', 'droplets', 'wind',
   'thermometer', 'lightbulb', 'bug', 'wrench', 'paint-roller', 'plug',
@@ -181,7 +174,6 @@ export const STATUS_TONE: Record<TaskStatus, 'danger' | 'warning' | 'neutral' | 
   done: 'success',
 };
 
-/* ---- TaskFormData (moved here to avoid circular dep with editors.tsx) ---- */
 export interface TaskFormData {
   id?: string;
   name: string;
@@ -195,33 +187,8 @@ export interface TaskFormData {
   startDate?: string;
 }
 
-/* ---- Firestore helpers ---- */
+// ── useTasks hook ─────────────────────────────────────────────────────────────
 
-// Stored shape — dueInDays is replaced with an absolute timestamp so it stays
-// accurate as time passes.
-interface FirestoreTaskDoc extends Omit<Task, 'id' | 'dueInDays'> {
-  dueDateMs: number;
-}
-
-function taskToDoc(task: Task): FirestoreTaskDoc {
-  const { id: _id, dueInDays, ...rest } = task;
-  return { ...rest, dueDateMs: Date.now() + dueInDays * 86_400_000 };
-}
-
-function docToTask(id: string, data: FirestoreTaskDoc): Task {
-  const { dueDateMs, ...rest } = data;
-  return {
-    ...rest,
-    id,
-    dueInDays: Math.round((dueDateMs - Date.now()) / 86_400_000),
-  };
-}
-
-function seedTasks(): Task[] {
-  return TASKS.map((t) => ({ ...t, prep: t.prep.map((p) => ({ ...p })) }));
-}
-
-/* ---- useTasks hook ---- */
 export interface TaskActions {
   tasks: Task[];
   loading: boolean;
@@ -236,35 +203,31 @@ export interface TaskActions {
   setRecurrence: (id: string, rec: Recurrence, startDate?: string, property?: string) => void;
 }
 
+function seedTasksLocal(): Task[] {
+  return TASKS.map((t) => ({ ...t, prep: t.prep.map((p) => ({ ...p })) }));
+}
+
 export function useTasks(uid: string | null): TaskActions {
   const [tasks, setTasks] = useState<Task[]>(() =>
-    firebaseConfigured ? [] : seedTasks(),
+    firebaseConfigured ? [] : seedTasksLocal(),
   );
   const [loading, setLoading] = useState(!!firebaseConfigured);
-  // Prevent re-seeding across uid changes within a session
   const seededUids = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!firebaseConfigured || !uid || !db) return;
+    if (!firebaseConfigured || !uid) return;
 
-    const colRef = collection(db, 'users', uid, 'tasks');
     let cancelled = false;
     let unsub: (() => void) | undefined;
 
     (async () => {
-      // Seed static tasks for new users so the app starts with real content.
       if (!seededUids.current.has(uid)) {
         seededUids.current.add(uid);
-        const snap = await getDocs(colRef);
-        if (!cancelled && snap.empty) {
-          const batch = writeBatch(db!);
-          TASKS.forEach((t) => batch.set(doc(colRef, t.id), taskToDoc(t)));
-          await batch.commit();
-        }
+        if (!cancelled) await seedTasksIfEmpty(uid, TASKS);
       }
       if (cancelled) return;
-      unsub = onSnapshot(colRef, (snap) => {
-        setTasks(snap.docs.map((d) => docToTask(d.id, d.data() as FirestoreTaskDoc)));
+      unsub = subscribeTasksFS(uid, (data) => {
+        setTasks(data);
         setLoading(false);
       });
     })();
@@ -275,144 +238,88 @@ export function useTasks(uid: string | null): TaskActions {
     };
   }, [uid]);
 
-  // ---- mutations (demo: local state; Firebase: Firestore write, snapshot drives state) ----
-
   const toggleTask = (id: string) => {
-    if (!firebaseConfigured || !uid || !db) {
-      setTasks((ts) => ts.map((t) => (t.id === id
+    if (!firebaseConfigured || !uid) {
+      setTasks((ts) => ts.map((t) => t.id === id
         ? { ...t, done: !t.done, completedAt: !t.done ? Date.now() : null }
-        : t)));
+        : t));
       return;
     }
     const task = tasks.find((t) => t.id === id);
-    if (task) {
-      const newDone = !task.done;
-      void updateDoc(doc(db, 'users', uid, 'tasks', id), {
-        done: newDone,
-        completedAt: newDone ? Date.now() : null,
-      });
-    }
+    if (task) void updateTaskFieldsFS(uid, id, { done: !task.done, completedAt: !task.done ? Date.now() : null });
   };
 
   const togglePrep = (tid: string, pid: number) => {
-    if (!firebaseConfigured || !uid || !db) {
-      setTasks((ts) =>
-        ts.map((t) =>
-          t.id === tid
-            ? { ...t, prep: t.prep.map((p) => (p.id === pid ? { ...p, done: !p.done } : p)) }
-            : t,
-        ),
-      );
-      return;
-    }
     const task = tasks.find((t) => t.id === tid);
     if (!task) return;
     const newPrep = task.prep.map((p) => (p.id === pid ? { ...p, done: !p.done } : p));
-    void updateDoc(doc(db, 'users', uid, 'tasks', tid), { prep: newPrep });
+    if (!firebaseConfigured || !uid) {
+      setTasks((ts) => ts.map((t) => t.id === tid ? { ...t, prep: newPrep } : t));
+      return;
+    }
+    void updateTaskFieldsFS(uid, tid, { prep: newPrep });
   };
 
   const addPrep = (tid: string, label: string) => {
-    setTasks((ts) =>
-      ts.map((t) =>
-        t.id === tid
-          ? { ...t, prep: [...t.prep, { id: Date.now(), label, done: false }] }
-          : t,
-      ),
-    );
-    if (firebaseConfigured && uid && db) {
-      const task = tasks.find((t) => t.id === tid);
-      if (task) {
-        const newPrep = [...task.prep, { id: Date.now(), label, done: false }];
-        void updateDoc(doc(db, 'users', uid, 'tasks', tid), { prep: newPrep });
-      }
-    }
+    const task = tasks.find((t) => t.id === tid);
+    if (!task) return;
+    const newPrep = [...task.prep, { id: Date.now(), label, done: false }];
+    setTasks((ts) => ts.map((t) => t.id === tid ? { ...t, prep: newPrep } : t));
+    if (firebaseConfigured && uid) void updateTaskFieldsFS(uid, tid, { prep: newPrep });
   };
 
   const updatePrep = (tid: string, pid: number, label: string) => {
-    setTasks((ts) =>
-      ts.map((t) =>
-        t.id === tid
-          ? { ...t, prep: t.prep.map((p) => (p.id === pid ? { ...p, label } : p)) }
-          : t,
-      ),
-    );
-    if (firebaseConfigured && uid && db) {
-      const task = tasks.find((t) => t.id === tid);
-      if (task) {
-        const newPrep = task.prep.map((p) => (p.id === pid ? { ...p, label } : p));
-        void updateDoc(doc(db, 'users', uid, 'tasks', tid), { prep: newPrep });
-      }
-    }
+    const task = tasks.find((t) => t.id === tid);
+    if (!task) return;
+    const newPrep = task.prep.map((p) => (p.id === pid ? { ...p, label } : p));
+    setTasks((ts) => ts.map((t) => t.id === tid ? { ...t, prep: newPrep } : t));
+    if (firebaseConfigured && uid) void updateTaskFieldsFS(uid, tid, { prep: newPrep });
   };
 
   const removePrep = (tid: string, pid: number) => {
-    setTasks((ts) =>
-      ts.map((t) =>
-        t.id === tid ? { ...t, prep: t.prep.filter((p) => p.id !== pid) } : t,
-      ),
-    );
-    if (firebaseConfigured && uid && db) {
-      const task = tasks.find((t) => t.id === tid);
-      if (task) {
-        const newPrep = task.prep.filter((p) => p.id !== pid);
-        void updateDoc(doc(db, 'users', uid, 'tasks', tid), { prep: newPrep });
-      }
-    }
+    const task = tasks.find((t) => t.id === tid);
+    if (!task) return;
+    const newPrep = task.prep.filter((p) => p.id !== pid);
+    setTasks((ts) => ts.map((t) => t.id === tid ? { ...t, prep: newPrep } : t));
+    if (firebaseConfigured && uid) void updateTaskFieldsFS(uid, tid, { prep: newPrep });
   };
 
   const photoPrep = (tid: string, pid: number, photo: string) => {
-    setTasks((ts) =>
-      ts.map((t) =>
-        t.id === tid
-          ? { ...t, prep: t.prep.map((p) => (p.id === pid ? { ...p, photo } : p)) }
-          : t,
-      ),
-    );
-    if (firebaseConfigured && uid && db) {
-      const task = tasks.find((t) => t.id === tid);
-      if (task) {
-        const newPrep = task.prep.map((p) => (p.id === pid ? { ...p, photo } : p));
-        void updateDoc(doc(db, 'users', uid, 'tasks', tid), { prep: newPrep });
-      }
-    }
+    const task = tasks.find((t) => t.id === tid);
+    if (!task) return;
+    const newPrep = task.prep.map((p) => (p.id === pid ? { ...p, photo } : p));
+    setTasks((ts) => ts.map((t) => t.id === tid ? { ...t, prep: newPrep } : t));
+    if (firebaseConfigured && uid) void updateTaskFieldsFS(uid, tid, { prep: newPrep });
   };
 
   const saveTask = (data: TaskFormData) => {
-    const { id, dueInDays, ...rest } = data;
-    const firestoreFields = { ...rest, dueDateMs: Date.now() + dueInDays * 86_400_000 };
-
-    if (!firebaseConfigured || !uid || !db) {
+    if (!firebaseConfigured || !uid) {
       setTasks((ts) => {
-        if (id) return ts.map((t) => (t.id === id ? { ...t, ...data } : t));
+        if (data.id) return ts.map((t) => (t.id === data.id ? { ...t, ...data } : t));
         return [...ts, { ...data, id: 'n' + Date.now(), done: false, prep: [] } as Task];
       });
       return;
     }
-    if (id) {
-      void updateDoc(doc(db, 'users', uid, 'tasks', id), firestoreFields);
-    } else {
-      const newRef = doc(collection(db, 'users', uid, 'tasks'));
-      void setDoc(newRef, { ...firestoreFields, done: false, prep: [] });
-    }
+    void saveTaskFS(uid, data);
   };
 
   const deleteTask = (id: string) => {
-    if (!firebaseConfigured || !uid || !db) {
+    if (!firebaseConfigured || !uid) {
       setTasks((ts) => ts.filter((t) => t.id !== id));
       return;
     }
-    void deleteDoc(doc(db, 'users', uid, 'tasks', id));
+    void deleteTaskFS(uid, id);
   };
 
   const setRecurrence = (id: string, rec: Recurrence, startDate?: string, property?: string) => {
     const update: Partial<Task> = { recurrence: rec };
     if (startDate !== undefined) update.startDate = startDate;
     if (property) update.property = property;
-    if (!firebaseConfigured || !uid || !db) {
+    if (!firebaseConfigured || !uid) {
       setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, ...update } : t)));
       return;
     }
-    void updateDoc(doc(db, 'users', uid, 'tasks', id), update);
+    void updateTaskFieldsFS(uid, id, update);
   };
 
   return { tasks, loading, toggleTask, togglePrep, addPrep, updatePrep, removePrep, photoPrep, saveTask, deleteTask, setRecurrence };

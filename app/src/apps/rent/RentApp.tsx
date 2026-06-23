@@ -39,10 +39,6 @@ import {
   useHouses,
   useReceipts,
   useRentEntries,
-  dbAddHouse,
-  dbSaveRoom,
-  dbAddReceipt,
-  dbAddRentEntry,
   type GridRow,
   type House,
   type RoomCol,
@@ -50,6 +46,7 @@ import {
   type RoomStatus,
 } from './data';
 import { firebaseConfigured } from '../../lib/firebase';
+import { addHouse as addHouseFS, saveRoom, addReceipt, addRentEntry } from '../../lib/rentService';
 import { AddHouseDrawer, EditRoomDrawer, AddRentDrawer, type AddRentCtx } from './forms';
 import {
   EntryWizard,
@@ -643,7 +640,7 @@ function RentInner() {
     if (!targetHouse) return;
     const updatedRooms = targetHouse.rooms.map((r) => (r.id === room.id ? room : r));
     if (firebaseConfigured && user) {
-      await dbSaveRoom(user.uid, houseId, updatedRooms);
+      await saveRoom(user.uid, houseId, updatedRooms);
     } else {
       setHouses((hs) =>
         hs.map((h) => (h.id !== houseId ? h : { ...h, rooms: updatedRooms })),
@@ -743,7 +740,7 @@ function RentInner() {
       <AddHouseDrawer
         open={addHouse}
         onClose={() => setAddHouse(false)}
-        onSave={async (p) => {
+        _saveHouse={async (p) => {
           const tempId = 'h' + Math.random().toString(36).slice(2, 6);
           const rooms: Room[] = Array.from({ length: p.rooms }, (_, k) => ({
             id: tempId + 'r' + k,
@@ -760,13 +757,12 @@ function RentInner() {
             rooms,
           };
           if (firebaseConfigured && user) {
-            const id = await dbAddHouse(user.uid, newHouse);
+            const id = await addHouseFS(user.uid, newHouse);
             setHouseId(id);
           } else {
             setHouses((hs) => [...hs, { ...newHouse, id: tempId }]);
             setHouseId(tempId);
           }
-          setAddHouse(false);
           toast('House added · ' + p.rooms + ' rooms');
         }}
       />
@@ -776,17 +772,17 @@ function RentInner() {
         room={editRoom}
         houseName={house?.name ?? ''}
         onClose={() => setEditRoom(null)}
-        onSave={async (room) => { await updateRoom(room); setEditRoom(null); toast('Room saved'); }}
+        _saveRoom={async (room) => { await updateRoom(room); toast('Room saved'); }}
       />
 
       {/* 3 · Add rent */}
       <AddRentDrawer
         ctx={addRent}
         onClose={() => setAddRent(null)}
-        onSave={async (room) => {
+        _saveRentEntry={async (room) => {
           await updateRoom(room);
-          if (user && addRent) {
-            await dbAddRentEntry(user.uid, {
+          if (user && addRent && firebaseConfigured) {
+            await addRentEntry(user.uid, {
               houseId: addRent.houseId,
               roomId: room.id,
               houseName: addRent.houseName,
@@ -799,7 +795,6 @@ function RentInner() {
               status: room.status,
             });
           }
-          setAddRent(null);
           toast('Rent recorded');
         }}
       />
@@ -824,7 +819,7 @@ function RentInner() {
         onClose={() => setUpload(false)}
         onUpload={async (rc: UploadedReceipt) => {
           if (firebaseConfigured && user) {
-            await dbAddReceipt(user.uid, rc);
+            await addReceipt(user.uid, rc);
           } else {
             setReceipts((rs) => [{ ...rc }, ...rs]);
           }

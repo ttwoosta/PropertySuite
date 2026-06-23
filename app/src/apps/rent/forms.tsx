@@ -8,6 +8,14 @@ import {
   getCurrencySymbol,
   formatCurrencyDecimal,
 } from '../../lib/currency';
+import {
+  validateHouseForm,
+  validateRoomForm,
+  isRoomFormValid,
+  validateRentEntryForm,
+  isRentEntryFormValid,
+} from '../../lib/rentValidation';
+import { useRentForm } from '../../hooks/useRentForm';
 import { type House, type Room, type RoomStatus } from './data';
 
 /* ---- primitives ---- */
@@ -21,15 +29,6 @@ function sanitizeAmt(s: string): string {
 function num(s: string): number {
   const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
-}
-
-function useSaver(): [boolean, (fn: () => void, delay?: number) => void] {
-  const [busy, setBusy] = useState(false);
-  const run = (fn: () => void, delay = 850) => {
-    setBusy(true);
-    setTimeout(() => { setBusy(false); fn(); }, delay);
-  };
-  return [busy, run];
 }
 
 export function useOpenReset(open: boolean, reset: () => void) {
@@ -337,30 +336,29 @@ const bodyCol = { display: 'flex', flexDirection: 'column' as const, gap: 16 };
 export function AddHouseDrawer({
   open,
   onClose,
-  onSave,
+  _saveHouse = async () => {},
 }: {
   open: boolean;
   onClose: () => void;
-  onSave: (p: { address: string; rooms: number; rent: number }) => void;
+  _saveHouse?: (p: { address: string; rooms: number; rent: number }) => Promise<void>;
 }) {
   const [addr, setAddr] = useState('');
   const [rooms, setRooms] = useState(3);
   const [rent, setRent] = useState('600');
   const [err, setErr] = useState<string | null>(null);
-  const [busy, save] = useSaver();
+  const { busy, submitHouse } = useRentForm({ saveHouse: _saveHouse });
 
   useOpenReset(open, () => { setAddr(''); setRooms(3); setRent('600'); setErr(null); });
-  useEffect(() => { /* icons refresh is handled by lucide globally */ }, []);
 
   const per = num(rent);
   const total = per * rooms;
-  const submit = () => {
-    if (per <= 0) {
-      setErr('Enter a base rent greater than ' + formatCurrencyDecimal(0) + ' before saving.');
-      return;
-    }
+
+  const submit = async () => {
+    const v = validateHouseForm(per);
+    if (!v.ok) { setErr(v.error); return; }
     setErr(null);
-    save(() => onSave({ address: addr.trim() || 'New house', rooms, rent: per }));
+    const ok = await submitHouse({ address: addr.trim() || 'New house', rooms, rent: per });
+    if (ok) onClose();
   };
 
   return (
@@ -410,12 +408,12 @@ export function EditRoomDrawer({
   room,
   houseName,
   onClose,
-  onSave,
+  _saveRoom = async () => {},
 }: {
   room: Room | null;
   houseName: string;
   onClose: () => void;
-  onSave: (r: Room) => void;
+  _saveRoom?: (r: Room) => Promise<void>;
 }) {
   const open = !!room;
   const [name, setName] = useState('');
@@ -423,8 +421,8 @@ export function EditRoomDrawer({
   const [renter, setRenter] = useState('');
   const [rent, setRent] = useState('');
   const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, save] = useSaver();
+  const [formErr, setFormErr] = useState<string | null>(null);
+  const { busy, submitRoom } = useRentForm({ saveRoom: _saveRoom });
 
   useOpenReset(open, () => {
     setName(room?.unit ?? '');
@@ -432,21 +430,19 @@ export function EditRoomDrawer({
     setRenter(room?.tenant ?? '');
     setRent(room ? String(room.rent) : '');
     setTouched({});
-    setErr(null);
+    setFormErr(null);
   });
 
   const occupied = status === 'Occupied';
-  const errs = {
-    name: !name.trim() ? 'Room name is required.' : null,
-    renter: occupied && !renter.trim() ? 'A renter is required for occupied rooms.' : null,
-    rent: num(rent) <= 0 ? 'Enter the monthly rent.' : null,
-  };
+  const errs = validateRoomForm({ name, renter, rent: num(rent), occupied });
   const show = (k: keyof typeof errs) => (touched[k] ? errs[k] : null);
-  const submit = () => {
+
+  const submit = async () => {
     setTouched({ name: true, renter: true, rent: true });
-    if (errs.name || errs.renter || errs.rent) { setErr('Fix the highlighted fields before saving.'); return; }
-    setErr(null);
-    save(() => onSave({ ...room!, unit: name.trim(), tenant: occupied ? renter.trim() : null, rent: num(rent) }));
+    if (!isRoomFormValid(errs)) { setFormErr('Fix the highlighted fields before saving.'); return; }
+    setFormErr(null);
+    const ok = await submitRoom({ ...room!, unit: name.trim(), tenant: occupied ? renter.trim() : null, rent: num(rent) });
+    if (ok) onClose();
   };
 
   return (
@@ -502,7 +498,7 @@ export function EditRoomDrawer({
             totalLabel="Monthly rent"
             totalValue={formatCurrencyDecimal(num(rent))}
           />
-          <FormError>{err}</FormError>
+          <FormError>{formErr}</FormError>
         </div>
       )}
     </RightDrawer>
@@ -522,11 +518,11 @@ export interface AddRentCtx {
 export function AddRentDrawer({
   ctx,
   onClose,
-  onSave,
+  _saveRentEntry = async () => {},
 }: {
   ctx: AddRentCtx | null;
   onClose: () => void;
-  onSave: (r: Room) => void;
+  _saveRentEntry?: (r: Room) => Promise<void>;
 }) {
   const open = !!ctx;
   const room = ctx?.room ?? null;
@@ -534,15 +530,15 @@ export function AddRentDrawer({
   const [due, setDue] = useState('');
   const [recv, setRecv] = useState('');
   const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, save] = useSaver();
+  const [formErr, setFormErr] = useState<string | null>(null);
+  const { busy, submitRentEntry } = useRentForm({ saveRentEntry: _saveRentEntry });
 
   useOpenReset(open, () => {
     setRenter(room?.tenant ?? '');
     setDue(room ? String(room.rent) : '');
     setRecv(room?.paid ? String(room.paid) : '');
     setTouched({});
-    setErr(null);
+    setFormErr(null);
   });
 
   const dueN = num(due);
@@ -551,17 +547,15 @@ export function AddRentDrawer({
   const badgeTone = status === 'Paid' ? 'success' : status === 'Partial' ? 'warning' : 'neutral';
   const paidFull = recvN > 0 && recvN >= dueN;
 
-  const errs = {
-    renter: !renter.trim() ? 'Renter is required.' : null,
-    due: dueN <= 0 ? 'Enter the amount due.' : null,
-  };
+  const errs = validateRentEntryForm({ renter, amountDue: dueN });
   const show = (k: keyof typeof errs) => (touched[k] ? errs[k] : null);
 
-  const submit = () => {
+  const submit = async () => {
     setTouched({ renter: true, due: true });
-    if (errs.renter || errs.due) { setErr('Fix the highlighted fields before saving.'); return; }
-    setErr(null);
-    save(() => onSave({ ...room!, tenant: renter.trim(), rent: dueN, paid: recvN, status }));
+    if (!isRentEntryFormValid(errs)) { setFormErr('Fix the highlighted fields before saving.'); return; }
+    setFormErr(null);
+    const ok = await submitRentEntry({ ...room!, tenant: renter.trim(), rent: dueN, paid: recvN, status });
+    if (ok) onClose();
   };
 
   return (
@@ -638,7 +632,7 @@ export function AddRentDrawer({
             totalLabel="Rent due"
             totalValue={formatCurrencyDecimal(dueN)}
           />
-          <FormError>{err}</FormError>
+          <FormError>{formErr}</FormError>
         </div>
       )}
     </RightDrawer>

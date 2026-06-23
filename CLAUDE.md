@@ -21,7 +21,12 @@ npm run typecheck  # type-check only, no emit
 npm run preview    # preview the production build
 ```
 
-No test suite exists.
+```sh
+npm run test        # run tests once (vitest)
+npm run test:watch  # vitest in watch mode
+```
+
+Tests live at `src/apps/rent/forms.test.tsx` (Vitest + jsdom + @testing-library/react). DS-vendor components, `RightDrawer`, and `currency` helpers are mocked via `vi.mock()`.
 
 ## Firebase / environment setup
 
@@ -29,7 +34,11 @@ Copy `app/.env.example` → `app/.env` and fill in Firebase credentials. Without
 
 Firebase products in use:
 - **Firebase Auth** — email/password sign-in
+- **Firestore** — Maintenance tasks and Rent houses/receipts (per-user subcollections)
+- **Firebase Storage** — receipt uploads in the Rent app
 - **Firebase AI Logic** — TenantBridge AI assistant (`gemini-2.5-flash` via `GoogleAIBackend`)
+
+When `firebaseConfigured` is true and the hostname is `localhost`, the app auto-connects to the Firebase emulators (Auth :9099, Firestore :9000, Storage :9199). Start them from the repo root with `npx firebase emulators:start`.
 
 ## App architecture
 
@@ -41,8 +50,11 @@ Firebase products in use:
 | `/maintenance` | `MaintenanceApp` |
 | `/rent` | `RentApp` |
 | `/tenant-bridge` | `TenantApp` |
+| `/profile` | `ProfileApp` |
 
-Each sub-app lives under `src/apps/<name>/` with a `data.ts` (static mock data) and one or more component files. There is no backend or database — all state is local to the React tree.
+Each sub-app lives under `src/apps/<name>/`. When Firebase is configured, Maintenance and Rent persist data to Firestore under `users/{uid}/tasks` and `users/{uid}/rent_houses` / `users/{uid}/rent_receipts` respectively. In demo mode (no Firebase), they seed from static `SEED_*` exports in `data.ts` and mutate local React state.
+
+The Rent app is split across multiple files: `RentApp.tsx` (shell + state), `charts.tsx` (income/expense charts), `entries.tsx` (year grid and receipt list), `forms.tsx` (drawer forms — `AddHouseDrawer`, `EditRoomDrawer`, `AddRentDrawer`).
 
 ## Design system (`src/ds-vendor/`)
 
@@ -77,6 +89,11 @@ All icons are kebab-case Lucide names resolved at runtime via `import * as Lucid
 - `src/styles/launcher.css` — launcher grid only
 
 Theme switching sets `data-theme="dark|light"` on `<html>`; token values respond via CSS attribute selectors. The launcher always forces `light`; each sub-app persists its own preference under `ps_theme_<appKey>` in localStorage.
+
+## Shared utilities (`src/lib/`)
+
+- `currency.ts` — multi-currency display helpers (`getCurrencySymbol`, `formatCurrency`, `formatCurrencyDecimal`). Selected currency persisted to `localStorage` under `ps_currency`; default is USD. `CURRENCIES` lists all supported codes.
+- `nav.ts` — back-navigation for the Profile page. Sub-apps call `rememberApp(path, label)` on mount; `profileReturn()` reads it to render the "Back to …" link. Persisted under `ps_last_app`.
 
 ## Auth (`src/lib/auth.tsx`)
 
