@@ -24,25 +24,25 @@ import {
 } from '../../components/ui';
 import { useAuth } from '../../lib/auth';
 import { rememberApp } from '../../lib/nav';
-import { Donut, GroupedBars, PeriodPicker, Popover } from './charts';
+import { Donut, PeriodPicker, Popover } from './charts';
 import {
-  ACTIVITY,
   CATEGORIES,
   EXP_MONTH,
   EXP_YTD,
   MONTHS,
   MONTH_NAMES,
   NAV,
-  SERIES,
   catById,
   emptyGrid,
   gbp,
   gridRow,
   useHouses,
   useReceipts,
+  useRentEntries,
   dbAddHouse,
   dbSaveRoom,
   dbAddReceipt,
+  dbAddRentEntry,
   type GridRow,
   type House,
   type RoomCol,
@@ -103,98 +103,131 @@ type ToastFn = (msg: string, tone?: 'success' | 'danger') => void;
 
 
 /* ---------------- Dashboard ---------------- */
-function Dashboard() {
-  const inc = SERIES[5].income;
-  const exp = SERIES[5].expense;
-  const pInc = SERIES[4].income;
-  const pExp = SERIES[4].expense;
-  const dInc = inc - pInc;
-  const dExp = exp - pExp;
+function Dashboard({ house }: { house: House }) {
+  const nonVacant = house.rooms.filter((r) => r.status !== 'Vacant');
+  const totalDue = nonVacant.reduce((s, r) => s + r.rent, 0);
+  const totalCollected = house.rooms.reduce((s, r) => s + r.paid, 0);
+  const outstanding = Math.max(0, totalDue - totalCollected);
+  const occupiedCount = house.rooms.filter((r) => r.tenant !== null).length;
+  const collectionPct = totalDue > 0 ? Math.round((totalCollected / totalDue) * 100) : 0;
+  const allClear = outstanding === 0 && totalDue > 0;
+
+  const { entries } = useRentEntries(house.id);
+  const activity = entries.slice(0, 5).map((e) => ({
+    dot: e.status === 'Paid' ? 'var(--green-500)'
+      : e.status === 'Partial' ? 'var(--amber-400)'
+      : 'var(--text-faint)',
+    label: e.status === 'Paid' ? 'Rent received — ' + e.tenant
+      : e.status === 'Partial' ? 'Partial payment — ' + e.tenant
+      : 'Rent pending — ' + e.tenant,
+    sub: e.houseName + ' · ' + e.roomName + ' · ' + MONTH_NAMES[e.month] + ' ' + e.year,
+    amount: e.amountPaid,
+  }));
+
+  const kpiNum: CSSProperties = {
+    fontFamily: 'var(--font-mono, monospace)',
+    fontSize: 'var(--text-4xl)',
+    fontWeight: 700,
+    letterSpacing: '-0.02em',
+    color: 'var(--text-heading)',
+    margin: '10px 0 6px',
+  };
+  const kpiSub: CSSProperties = { fontSize: 'var(--text-sm)', fontWeight: 600 };
+
   return (
     <div className="ps-fade">
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: 16,
-          marginBottom: 20,
-        }}
-      >
+      {/* KPI row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 20 }}>
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-muted)' }}>
-              Monthly income
-            </span>
+            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-muted)' }}>Collected</span>
             <Icon name="trending-up" size={18} style={{ color: 'var(--brand)' }} />
           </div>
-          <div
-            className="ps-mono"
-            style={{ fontSize: 'var(--text-4xl)', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-heading)', margin: '10px 0 6px' }}
-          >
-            {gbp(inc)}
-          </div>
-          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--success-fg)' }}>
-            ▲ {gbp(dInc)} vs May
-          </span>
+          <div className="ps-mono" style={kpiNum}>{gbp(totalCollected)}</div>
+          <span style={{ ...kpiSub, color: 'var(--text-muted)' }}>{collectionPct}% of {gbp(totalDue)} due</span>
         </Card>
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-muted)' }}>
-              Monthly expenses
-            </span>
-            <Icon name="trending-down" size={18} style={{ color: 'var(--amber-400)' }} />
+            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-muted)' }}>Outstanding</span>
+            <Icon
+              name={allClear ? 'check-circle-2' : 'alert-circle'}
+              size={18}
+              style={{ color: allClear ? 'var(--green-500)' : outstanding > 0 ? 'var(--amber-400)' : 'var(--text-faint)' }}
+            />
           </div>
-          <div
-            className="ps-mono"
-            style={{ fontSize: 'var(--text-4xl)', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-heading)', margin: '10px 0 6px' }}
-          >
-            {gbp(exp)}
+          <div className="ps-mono" style={{ ...kpiNum, color: allClear ? 'var(--success-fg)' : outstanding > 0 ? 'var(--amber-400)' : 'var(--text-heading)' }}>
+            {gbp(outstanding)}
           </div>
-          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: dExp > 0 ? 'var(--danger-fg)' : 'var(--success-fg)' }}>
-            {dExp > 0 ? '▲' : '▼'} {gbp(dExp)} vs May
-          </span>
+          <span style={{ ...kpiSub, color: 'var(--text-muted)' }}>{allClear ? 'fully collected' : 'remaining to collect'}</span>
+        </Card>
+        <Card>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-muted)' }}>Occupancy</span>
+            <Icon name="users" size={18} style={{ color: 'var(--brand)' }} />
+          </div>
+          <div className="ps-mono" style={kpiNum}>{occupiedCount}/{house.rooms.length}</div>
+          <span style={{ ...kpiSub, color: 'var(--text-muted)' }}>rooms occupied</span>
         </Card>
       </div>
 
-      <Card style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-          <div style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-heading)' }}>
-            Income vs expenses
-          </div>
-          <div style={{ display: 'flex', gap: 16, fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 600 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, background: 'var(--brand)' }} />Income
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, background: 'var(--amber-400)' }} />Expenses
-            </span>
-          </div>
+      {/* Per-room collection progress */}
+      <Card padding="0" style={{ marginBottom: 20 }}>
+        <div style={{ padding: '16px var(--card-pad) 6px', fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-heading)' }}>
+          Collection status
         </div>
-        <GroupedBars series={SERIES} />
+        {house.rooms.map((r, i) => {
+          const pct = r.rent > 0 ? Math.round((r.paid / r.rent) * 100) : 0;
+          const vacant = r.status === 'Vacant';
+          const barColor = pct === 100 ? 'var(--green-500)' : pct > 0 ? 'var(--amber-400)' : 'var(--border-strong)';
+          return (
+            <div
+              key={r.id}
+              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px var(--card-pad)', borderTop: i ? '1px solid var(--border-subtle)' : 'none' }}
+            >
+              <div style={{ width: 62, fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-heading)' }}>{r.unit}</div>
+              <div style={{ flex: 1, minWidth: 0, fontSize: 'var(--text-sm)', color: r.tenant ? 'var(--text-body)' : 'var(--text-faint)' }}>
+                {r.tenant ?? 'Vacant'}
+              </div>
+              {!vacant && (
+                <div style={{ width: 100, height: 5, background: 'var(--surface-sunken)', borderRadius: 99, overflow: 'hidden', flex: 'none' }}>
+                  <div style={{ height: '100%', width: pct + '%', background: barColor, borderRadius: 99, transition: 'width 0.35s' }} />
+                </div>
+              )}
+              <div className="ps-mono" style={{ width: 110, textAlign: 'right', fontSize: 'var(--text-sm)', color: vacant ? 'var(--text-faint)' : 'var(--text-body)', flex: 'none' }}>
+                {vacant ? '—' : gbp(r.paid) + ' / ' + gbp(r.rent)}
+              </div>
+              <div style={{ width: 68, display: 'flex', justifyContent: 'flex-end', flex: 'none' }}>
+                <Badge tone={STATUS_BADGE[r.status]} size="sm">{r.status}</Badge>
+              </div>
+            </div>
+          );
+        })}
       </Card>
 
-      <Card padding="0">
-        <div style={{ padding: '16px var(--card-pad) 6px', fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-heading)' }}>
-          Recent activity
-        </div>
-        <div>
-          {ACTIVITY.map((a, i) => (
-            <div
-              key={i}
-              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px var(--card-pad)', borderTop: '1px solid var(--border-subtle)' }}
-            >
-              <span style={{ width: 9, height: 9, borderRadius: '50%', background: a.dot, flex: 'none' }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-heading)' }}>{a.label}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{a.sub} · {a.when}</div>
+      {/* Activity feed derived from room statuses */}
+      {activity.length > 0 && (
+        <Card padding="0">
+          <div style={{ padding: '16px var(--card-pad) 6px', fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-heading)' }}>
+            Recent activity
+          </div>
+          <div>
+            {activity.map((a, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px var(--card-pad)', borderTop: '1px solid var(--border-subtle)' }}>
+                <span style={{ width: 9, height: 9, borderRadius: '50%', background: a.dot, flex: 'none' }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-heading)' }}>{a.label}</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{a.sub}</div>
+                </div>
+                {a.amount > 0 && (
+                  <span className="ps-mono" style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--success-fg)' }}>
+                    +{gbp(a.amount)}
+                  </span>
+                )}
               </div>
-              <span className="ps-mono" style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: a.amount < 0 ? 'var(--text-heading)' : 'var(--success-fg)' }}>
-                {a.amount < 0 ? '−' : '+'}{gbp(a.amount)}
-              </span>
-            </div>
-          ))}
-        </div>
-      </Card>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
@@ -680,14 +713,14 @@ function RentInner() {
 
   return (
     <ResponsiveShell sidebar={sidebar} topBar={topBar}>
-      {view === 'home' && <Dashboard />}
+      {view === 'home' && house && <Dashboard house={house} />}
       {view === 'grid' && house && <YearGrid key={house.id} house={house} year={year} toast={toast} />}
       {view === 'houses' && house && (
         <Houses
           house={house}
           onAddHouse={() => setAddHouse(true)}
           onEditRoom={setEditRoom}
-          onAddRent={(room) => setAddRent({ room, houseName: house.name, period })}
+          onAddRent={(room) => setAddRent({ room, houseId, houseName: house.name, period, month, year })}
         />
       )}
       {view === 'expenses' && (
@@ -750,7 +783,25 @@ function RentInner() {
       <AddRentDrawer
         ctx={addRent}
         onClose={() => setAddRent(null)}
-        onSave={async (room) => { await updateRoom(room); setAddRent(null); toast('Rent recorded'); }}
+        onSave={async (room) => {
+          await updateRoom(room);
+          if (user && addRent) {
+            await dbAddRentEntry(user.uid, {
+              houseId: addRent.houseId,
+              roomId: room.id,
+              houseName: addRent.houseName,
+              roomName: room.unit,
+              tenant: room.tenant ?? '',
+              month: addRent.month,
+              year: addRent.year,
+              amountDue: room.rent,
+              amountPaid: room.paid,
+              status: room.status,
+            });
+          }
+          setAddRent(null);
+          toast('Rent recorded');
+        }}
       />
 
       {/* 4 · Add / edit entry */}

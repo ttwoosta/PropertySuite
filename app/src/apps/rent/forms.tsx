@@ -512,8 +512,11 @@ export function EditRoomDrawer({
 /* ============ 3 · Add Rent ============ */
 export interface AddRentCtx {
   room: Room;
+  houseId: string;
   houseName: string;
   period: string;
+  month: number;
+  year: number;
 }
 
 export function AddRentDrawer({

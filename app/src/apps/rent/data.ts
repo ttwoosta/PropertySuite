@@ -8,7 +8,9 @@ import {
   updateDoc,
   deleteDoc,
   query,
+  where,
   orderBy,
+  limit,
   serverTimestamp,
 } from 'firebase/firestore';
 import { db, firebaseConfigured } from '../../lib/firebase';
@@ -53,16 +55,6 @@ export const CATEGORIES: Category[] = [
 
 export interface SeriesPoint { m: string; income: number; expense: number }
 
-// 6-month income/expense series — stub until we aggregate from Firestore entries.
-export const SERIES: SeriesPoint[] = [
-  { m: 'Jan', income: 4030, expense: 2240 },
-  { m: 'Feb', income: 4030, expense: 1980 },
-  { m: 'Mar', income: 4250, expense: 2620 },
-  { m: 'Apr', income: 4250, expense: 2110 },
-  { m: 'May', income: 4410, expense: 1890 },
-  { m: 'Jun', income: 4475, expense: 2305 },
-];
-
 // Current-month and YTD expense by category — stub.
 export const EXP_MONTH: Record<string, number> = {
   tax: 540, water: 96, elec: 188, gas: 142, maint: 615, loan: 724,
@@ -70,18 +62,6 @@ export const EXP_MONTH: Record<string, number> = {
 export const EXP_YTD: Record<string, number> = {
   tax: 3240, water: 560, elec: 1180, gas: 980, maint: 2140, loan: 4344,
 };
-
-export interface Activity {
-  cat: string; dot: string; label: string; sub: string; amount: number; when: string;
-}
-// Recent activity feed — stub until we aggregate from Firestore entries.
-export const ACTIVITY: Activity[] = [
-  { cat: 'rent', dot: 'var(--green-500)', label: 'Rent received — Dana Okafor', sub: 'Birchwood · Room 1', amount: 700, when: '2 hours ago' },
-  { cat: 'maint', dot: 'var(--gray-500)', label: 'Maintenance — boiler repair', sub: 'Maple Court', amount: -615, when: '1 day ago' },
-  { cat: 'rent', dot: 'var(--green-500)', label: 'Rent received — Marcus Bell', sub: 'Maple · Room 1', amount: 620, when: '2 days ago' },
-  { cat: 'loan', dot: 'var(--green-600)', label: 'Loan payment', sub: 'Maple Court mortgage', amount: -724, when: '3 days ago' },
-  { cat: 'elec', dot: 'var(--amber-400)', label: 'Electricity bill', sub: 'Birchwood House', amount: -188, when: '5 days ago' },
-];
 
 // ── Grid types (used by YearGrid) ────────────────────────────────────────────
 
@@ -296,4 +276,113 @@ export async function dbAddReceipt(uid: string, rc: Omit<ReceiptWithKind, 'id'>)
 
 export async function dbDeleteReceipt(uid: string, receiptId: string): Promise<void> {
   await deleteDoc(receiptDoc(uid, receiptId));
+}
+
+// ── Rent entry types ──────────────────────────────────────────────────────────
+
+export interface RentEntry {
+  id: string;
+  houseId: string;
+  roomId: string;
+  houseName: string;
+  roomName: string;
+  tenant: string;
+  month: number;       // 0–11
+  year: number;
+  amountDue: number;
+  amountPaid: number;
+  status: RoomStatus;
+  notes?: string;
+}
+
+// ── Seed rent entries for demo mode ──────────────────────────────────────────
+
+export const SEED_RENT_ENTRIES: RentEntry[] = SEED_HOUSES.flatMap((h) =>
+  h.rooms
+    .filter((r) => r.status !== 'Vacant')
+    .map((r) => ({
+      id: 'se-' + r.id,
+      houseId: h.id,
+      roomId: r.id,
+      houseName: h.name,
+      roomName: r.unit,
+      tenant: r.tenant!,
+      month: 5,
+      year: 2026,
+      amountDue: r.rent,
+      amountPaid: r.paid,
+      status: r.status,
+    })),
+);
+
+// ── Rent entry Firestore helpers ──────────────────────────────────────────────
+
+function rentEntriesCol(uid: string) {
+  return collection(db!, 'users', uid, 'rent_entries');
+}
+
+function rentEntryDoc(uid: string, entryId: string) {
+  return doc(db!, 'users', uid, 'rent_entries', entryId);
+}
+
+// ── Rent entries hook ─────────────────────────────────────────────────────────
+
+export interface RentEntriesState {
+  entries: RentEntry[];
+  loading: boolean;
+  setEntries: React.Dispatch<React.SetStateAction<RentEntry[]>>;
+}
+
+export function useRentEntries(houseId?: string): RentEntriesState {
+  const { user } = useAuth();
+  const [entries, setEntries] = useState<RentEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+
+    if (!firebaseConfigured || !db) {
+      const seed = houseId
+        ? SEED_RENT_ENTRIES.filter((e) => e.houseId === houseId)
+        : SEED_RENT_ENTRIES;
+      setEntries(seed.map((e) => ({ ...e })));
+      setLoading(false);
+      return;
+    }
+
+    const q = houseId
+      ? query(rentEntriesCol(user.uid), where('houseId', '==', houseId), orderBy('createdAt', 'desc'))
+      : query(rentEntriesCol(user.uid), orderBy('createdAt', 'desc'), limit(50));
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setEntries(snap.docs.map((d) => ({ ...(d.data() as Omit<RentEntry, 'id'>), id: d.id })));
+        setLoading(false);
+      },
+      (err) => { console.error('[rent] entries snapshot error', err); setLoading(false); },
+    );
+    return unsub;
+  }, [user?.uid, houseId]);
+
+  return { entries, setEntries, loading };
+}
+
+// ── Rent entry CRUD ───────────────────────────────────────────────────────────
+
+export async function dbAddRentEntry(uid: string, entry: Omit<RentEntry, 'id'>): Promise<string> {
+  const ref = await addDoc(rentEntriesCol(uid), { ...entry, createdAt: serverTimestamp() });
+  return ref.id;
+}
+
+export async function dbUpdateRentEntry(
+  uid: string,
+  entryId: string,
+  data: Partial<Omit<RentEntry, 'id'>>,
+): Promise<void> {
+  await updateDoc(rentEntryDoc(uid, entryId), { ...data, updatedAt: serverTimestamp() });
+}
+
+export async function dbDeleteRentEntry(uid: string, entryId: string): Promise<void> {
+  await deleteDoc(rentEntryDoc(uid, entryId));
 }

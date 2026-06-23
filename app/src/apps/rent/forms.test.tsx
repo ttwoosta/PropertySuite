@@ -228,7 +228,7 @@ describe('EditRoomDrawer', () => {
 // ── AddRentDrawer ───────────────────────────────────────────────────────────
 
 describe('AddRentDrawer', () => {
-  const ctx = { room: partialRoom, houseName: 'Maple Court', period: 'June 2026' };
+  const ctx = { room: partialRoom, houseId: 'maple', houseName: 'Maple Court', period: 'June 2026', month: 5, year: 2026 };
   const onClose = vi.fn();
   const onSave  = vi.fn();
 
