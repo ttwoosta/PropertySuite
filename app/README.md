@@ -77,3 +77,6 @@ publishes our single npm React instance onto the global object *before*
 `ds.ts` runs the bundle, so the DS components and the app share one React (hooks and
 context work across the boundary). `components.tsx` re-exports them with TypeScript prop
 types.
+
+
+cd /Users/tutong/CS2050/PropertySuite && npx firebase-tools@latest deploy --only hosting 2>&1
