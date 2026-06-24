@@ -119,40 +119,6 @@ export const catById: Record<string, Category> = Object.fromEntries(
 
 export { formatCurrency as gbp } from '../../lib/currency';
 
-// ── Demo-mode seed data ───────────────────────────────────────────────────────
-
-export const SEED_HOUSES: House[] = [
-  {
-    id: 'maple',
-    name: 'Maple Court',
-    address: '14 Maple Court, Leeds LS6 2AB',
-    rooms: [
-      { id: 'm1', unit: 'Room 1', tenant: 'Marcus Bell', rent: 620, paid: 620, status: 'Paid', beds: 1 },
-      { id: 'm2', unit: 'Room 2', tenant: 'Priya Shah', rent: 640, paid: 320, status: 'Partial', beds: 1 },
-      { id: 'm3', unit: 'Room 3', tenant: 'Tom Reilly', rent: 600, paid: 0, status: 'Pending', beds: 1 },
-      { id: 'm4', unit: 'Room 4', tenant: null, rent: 600, paid: 0, status: 'Vacant', beds: 1 },
-    ],
-  },
-  {
-    id: 'birch',
-    name: 'Birchwood House',
-    address: '8 Birchwood Rd, Leeds LS4 1QP',
-    rooms: [
-      { id: 'b1', unit: 'Room 1', tenant: 'Dana Okafor', rent: 700, paid: 700, status: 'Paid', beds: 2 },
-      { id: 'b2', unit: 'Room 2', tenant: 'Sam Lin', rent: 580, paid: 580, status: 'Paid', beds: 1 },
-      { id: 'b3', unit: 'Room 3', tenant: 'Ava Moreno', rent: 590, paid: 295, status: 'Partial', beds: 1 },
-    ],
-  },
-];
-
-export const SEED_RECEIPTS: ReceiptWithKind[] = [
-  { id: 'r1', merchant: 'British Gas', cat: 'gas', date: '4 Jun 2026', amount: 142, kind: 'pdf' },
-  { id: 'r2', merchant: 'Yorkshire Water', cat: 'water', date: '2 Jun 2026', amount: 96, kind: 'img' },
-  { id: 'r3', merchant: 'PlumbPro Ltd', cat: 'maint', date: '28 May 2026', amount: 615, kind: 'img' },
-  { id: 'r4', merchant: 'EDF Energy', cat: 'elec', date: '20 May 2026', amount: 188, kind: 'pdf' },
-  { id: 'r5', merchant: 'Leeds City Council', cat: 'tax', date: '12 May 2026', amount: 540, kind: 'pdf' },
-  { id: 'r6', merchant: 'Halifax Mortgage', cat: 'loan', date: '1 May 2026', amount: 724, kind: 'img' },
-];
 
 // ── Rent entry types ──────────────────────────────────────────────────────────
 
@@ -171,26 +137,6 @@ export interface RentEntry {
   notes?: string;
 }
 
-// ── Seed rent entries for demo mode ──────────────────────────────────────────
-
-export const SEED_RENT_ENTRIES: RentEntry[] = SEED_HOUSES.flatMap((h) =>
-  h.rooms
-    .filter((r) => r.status !== 'Vacant')
-    .map((r) => ({
-      id: 'se-' + r.id,
-      houseId: h.id,
-      roomId: r.id,
-      houseName: h.name,
-      roomName: r.unit,
-      tenant: r.tenant!,
-      month: 5,
-      year: 2026,
-      amountDue: r.rent,
-      amountPaid: r.paid,
-      status: r.status,
-    })),
-);
-
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
 export interface HousesState {
@@ -206,11 +152,7 @@ export function useHouses(): HousesState {
 
   useEffect(() => {
     if (!user) return;
-    if (!firebaseConfigured) {
-      setHouses(SEED_HOUSES.map((h) => ({ ...h, rooms: h.rooms.map((r) => ({ ...r })) })));
-      setLoading(false);
-      return;
-    }
+    
     return subscribeHouses(
       user.uid,
       (data) => { setHouses(data); setLoading(false); },
@@ -234,11 +176,7 @@ export function useReceipts(): ReceiptsState {
 
   useEffect(() => {
     if (!user) return;
-    if (!firebaseConfigured) {
-      setReceipts(SEED_RECEIPTS.map((r) => ({ ...r })));
-      setLoading(false);
-      return;
-    }
+    
     return subscribeReceipts(
       user.uid,
       (data) => { setReceipts(data); setLoading(false); },
@@ -262,14 +200,7 @@ export function useRentEntries(houseId?: string): RentEntriesState {
 
   useEffect(() => {
     if (!user) return;
-    if (!firebaseConfigured) {
-      const seed = houseId
-        ? SEED_RENT_ENTRIES.filter((e) => e.houseId === houseId)
-        : SEED_RENT_ENTRIES;
-      setEntries(seed.map((e) => ({ ...e })));
-      setLoading(false);
-      return;
-    }
+    
     return subscribeRentEntries(
       user.uid,
       houseId,

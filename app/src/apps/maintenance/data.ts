@@ -251,7 +251,7 @@ export function useTasks(uid: string | null): TaskActions {
 
   const togglePrep = (tid: string, pid: number) => {
     const task = tasks.find((t) => t.id === tid);
-    if (!task) return;
+    if (!task) { console.error('Task not found for togglePrep:', tid); return; }
     const newPrep = task.prep.map((p) => (p.id === pid ? { ...p, done: !p.done } : p));
     if (!firebaseConfigured || !uid) {
       setTasks((ts) => ts.map((t) => t.id === tid ? { ...t, prep: newPrep } : t));
@@ -262,7 +262,7 @@ export function useTasks(uid: string | null): TaskActions {
 
   const addPrep = (tid: string, label: string) => {
     const task = tasks.find((t) => t.id === tid);
-    if (!task) return;
+    if (!task) { console.error('Task not found for addPrep:', tid); return; }
     const newPrep = [...task.prep, { id: Date.now(), label, done: false }];
     setTasks((ts) => ts.map((t) => t.id === tid ? { ...t, prep: newPrep } : t));
     if (firebaseConfigured && uid) void updateTaskFieldsFS(uid, tid, { prep: newPrep });
@@ -270,7 +270,7 @@ export function useTasks(uid: string | null): TaskActions {
 
   const updatePrep = (tid: string, pid: number, label: string) => {
     const task = tasks.find((t) => t.id === tid);
-    if (!task) return;
+    if (!task) { console.error('Task not found for updatePrep:', tid); return; }
     const newPrep = task.prep.map((p) => (p.id === pid ? { ...p, label } : p));
     setTasks((ts) => ts.map((t) => t.id === tid ? { ...t, prep: newPrep } : t));
     if (firebaseConfigured && uid) void updateTaskFieldsFS(uid, tid, { prep: newPrep });
@@ -278,7 +278,7 @@ export function useTasks(uid: string | null): TaskActions {
 
   const removePrep = (tid: string, pid: number) => {
     const task = tasks.find((t) => t.id === tid);
-    if (!task) return;
+    if (!task) { console.error('Task not found for removePrep:', tid); return; }
     const newPrep = task.prep.filter((p) => p.id !== pid);
     setTasks((ts) => ts.map((t) => t.id === tid ? { ...t, prep: newPrep } : t));
     if (firebaseConfigured && uid) void updateTaskFieldsFS(uid, tid, { prep: newPrep });
@@ -286,7 +286,7 @@ export function useTasks(uid: string | null): TaskActions {
 
   const photoPrep = (tid: string, pid: number, photo: string) => {
     const task = tasks.find((t) => t.id === tid);
-    if (!task) return;
+    if (!task) { console.error('Task not found for photoPrep:', tid); return; }
     const newPrep = task.prep.map((p) => (p.id === pid ? { ...p, photo } : p));
     setTasks((ts) => ts.map((t) => t.id === tid ? { ...t, prep: newPrep } : t));
     if (firebaseConfigured && uid) void updateTaskFieldsFS(uid, tid, { prep: newPrep });

@@ -611,7 +611,7 @@ function RentInner() {
   const toast = useToast();
 
   // Firestore-backed domain state (falls back to seed data in demo mode)
-  const { houses, setHouses } = useHouses();
+  const { houses, setHouses, loading: housesLoading } = useHouses();
   const { receipts, setReceipts } = useReceipts();
   const [links, setLinks] = useState<Record<string, string>>({});
   const [vals, setVals] = useState<Record<string, number>>({});
@@ -625,9 +625,16 @@ function RentInner() {
   const [picker, setPicker] = useState<PickerCtx | null>(null);
   const [viewer, setViewer] = useState<ViewerCtx | null>(null);
 
+
   useEffect(() => {
-    if (houses.length === 0) setAddHouse(true);
-  }, [houses.length]);
+    if (!housesLoading && houses.length === 0) setAddHouse(true);
+  }, [housesLoading]);
+
+  useEffect(() => {
+    if (houses.length > 0 && !houses.find((h) => h.id === houseId)) {
+      setHouseId(houses[0].id);
+    }
+  }, [houses, houseId]);
 
   const house = houses.find((h) => h.id === houseId) ?? houses[0];
   const roomCount = houses.reduce((s, h) => s + h.rooms.length, 0);
@@ -637,7 +644,10 @@ function RentInner() {
 
   const updateRoom = async (room: Room) => {
     const targetHouse = houses.find((h) => h.id === houseId);
-    if (!targetHouse) return;
+    if (!targetHouse) {
+      console.error('House not found for room update:', houseId);
+      return;
+    }
     const updatedRooms = targetHouse.rooms.map((r) => (r.id === room.id ? room : r));
     if (firebaseConfigured && user) {
       await saveRoom(user.uid, houseId, updatedRooms);
