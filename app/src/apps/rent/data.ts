@@ -142,6 +142,8 @@ export interface RentEntry {
 export interface HousesState {
   houses: House[];
   loading: boolean;
+  error: Error | null;
+  retry: () => void;
   setHouses: React.Dispatch<React.SetStateAction<House[]>>;
 }
 
@@ -149,23 +151,28 @@ export function useHouses(): HousesState {
   const { user } = useAuth();
   const [houses, setHouses] = useState<House[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
-    
+    setLoading(true);
+    setError(null);
     return subscribeHouses(
       user.uid,
       (data) => { setHouses(data); setLoading(false); },
-      (err) => { console.error('[rent] houses snapshot error', err); setLoading(false); },
+      (err) => { console.error('[rent] houses snapshot error', err); setError(err); setLoading(false); },
     );
-  }, [user?.uid]);
+  }, [user?.uid, retryCount]);
 
-  return { houses, setHouses, loading };
+  return { houses, setHouses, loading, error, retry: () => setRetryCount((c) => c + 1) };
 }
 
 export interface ReceiptsState {
   receipts: ReceiptWithKind[];
   loading: boolean;
+  error: Error | null;
+  retry: () => void;
   setReceipts: React.Dispatch<React.SetStateAction<ReceiptWithKind[]>>;
 }
 
@@ -173,23 +180,28 @@ export function useReceipts(): ReceiptsState {
   const { user } = useAuth();
   const [receipts, setReceipts] = useState<ReceiptWithKind[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
-    
+    setLoading(true);
+    setError(null);
     return subscribeReceipts(
       user.uid,
       (data) => { setReceipts(data); setLoading(false); },
-      (err) => { console.error('[rent] receipts snapshot error', err); setLoading(false); },
+      (err) => { console.error('[rent] receipts snapshot error', err); setError(err); setLoading(false); },
     );
-  }, [user?.uid]);
+  }, [user?.uid, retryCount]);
 
-  return { receipts, setReceipts, loading };
+  return { receipts, setReceipts, loading, error, retry: () => setRetryCount((c) => c + 1) };
 }
 
 export interface RentEntriesState {
   entries: RentEntry[];
   loading: boolean;
+  error: Error | null;
+  retry: () => void;
   setEntries: React.Dispatch<React.SetStateAction<RentEntry[]>>;
 }
 
@@ -197,17 +209,20 @@ export function useRentEntries(houseId?: string): RentEntriesState {
   const { user } = useAuth();
   const [entries, setEntries] = useState<RentEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
-    
+    setLoading(true);
+    setError(null);
     return subscribeRentEntries(
       user.uid,
       houseId,
       (data) => { setEntries(data); setLoading(false); },
-      (err) => { console.error('[rent] entries snapshot error', err); setLoading(false); },
+      (err) => { console.error('[rent] entries snapshot error', err); setError(err); setLoading(false); },
     );
-  }, [user?.uid, houseId]);
+  }, [user?.uid, houseId, retryCount]);
 
-  return { entries, setEntries, loading };
+  return { entries, setEntries, loading, error, retry: () => setRetryCount((c) => c + 1) };
 }
