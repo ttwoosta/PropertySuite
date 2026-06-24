@@ -27,8 +27,6 @@ import { rememberApp } from '../../lib/nav';
 import { Donut, PeriodPicker, Popover } from './charts';
 import {
   CATEGORIES,
-  EXP_MONTH,
-  EXP_YTD,
   MONTHS,
   MONTH_NAMES,
   NAV,
@@ -46,7 +44,7 @@ import {
   type RoomStatus,
 } from './data';
 import { firebaseConfigured } from '../../lib/firebase';
-import { addHouse as addHouseFS, saveRoom, addReceipt, addRentEntry, saveGridCell, subscribeGridCells } from '../../lib/rentService';
+import { addHouse as addHouseFS, saveRoom, addReceipt, addRentEntry, saveGridCell, subscribeGridCells, saveExpenseEntry, linkExpenseReceipt, subscribeExpenseEntries } from '../../lib/rentService';
 import { AddHouseDrawer, EditRoomDrawer, AddRentDrawer, type AddRentCtx } from './forms';
 import {
   EntryWizard,
@@ -461,6 +459,7 @@ function Houses({
 /* ---------------- Expenses ---------------- */
 function Expenses({
   houseId,
+  year,
   links,
   receipts,
   vals,
@@ -470,6 +469,7 @@ function Expenses({
   onView,
 }: {
   houseId: string;
+  year: number;
   links: Record<string, string>;
   receipts: ReceiptWithKind[];
   vals: Record<string, number>;
@@ -479,17 +479,18 @@ function Expenses({
   onView: (receipt: ReceiptWithKind, entryId: string) => void;
 }) {
   const [open, setOpen] = useState<string | null>('maint');
-  const total = Object.values(EXP_MONTH).reduce((a, b) => a + b, 0);
-  const donutData = CATEGORIES.map((c) => ({ id: c.id, color: c.color, value: EXP_MONTH[c.id] }));
+  const catTotal = (cid: string) => MONTHS.reduce((s, _, mi) => s + (vals[cid + '-' + mi] ?? 0), 0);
+  const total = CATEGORIES.reduce((s, c) => s + catTotal(c.id), 0);
+  const donutData = CATEGORIES.map((c) => ({ id: c.id, color: c.color, value: catTotal(c.id) }));
   const rcById = Object.fromEntries(receipts.map((r) => [r.id, r]));
-  const amtOf = (cid: string, mi: number) =>
-    vals[cid + '-' + mi] != null ? vals[cid + '-' + mi] : Math.max(40, EXP_MONTH[cid] - mi * 7);
+  const amtOf = (cid: string, mi: number): number | null =>
+    vals[cid + '-' + mi] != null ? vals[cid + '-' + mi] : null;
 
   return (
     <div className="ps-fade">
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--text-heading)' }}>Expenses · 2026</div>
+          <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--text-heading)' }}>Expenses · {year}</div>
           <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>Tap a month to edit or attach a receipt</div>
         </div>
         <Button variant="primary" leadingIcon={di('plus')} onClick={() => onAddEntry(open ?? 'maint')}>Add entry</Button>
@@ -501,7 +502,7 @@ function Expenses({
             <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
               <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color, flex: 'none' }} />
               <span style={{ flex: 1, fontSize: 'var(--text-sm)', color: 'var(--text-body)' }}>{c.label}</span>
-              <span className="ps-mono" style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-heading)' }}>{gbp(EXP_MONTH[c.id])}</span>
+              <span className="ps-mono" style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-heading)' }}>{gbp(catTotal(c.id))}</span>
             </div>
           ))}
         </div>
@@ -509,6 +510,7 @@ function Expenses({
       <Card padding="0" style={{ overflow: 'hidden' }}>
         {CATEGORIES.map((c, i) => {
           const isOpen = open === c.id;
+          const ytd = catTotal(c.id);
           return (
             <div key={c.id} style={{ borderTop: i ? '1px solid var(--border-subtle)' : 'none' }}>
               <button
@@ -519,14 +521,15 @@ function Expenses({
                   <span style={{ display: 'inline-flex', width: 16, height: 16 }}>{di(c.icon)}</span>
                 </span>
                 <span style={{ flex: 1, textAlign: 'left', fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-heading)' }}>{c.label}</span>
-                <span className="ps-mono" style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-heading)' }}>{gbp(EXP_MONTH[c.id])}</span>
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', width: 96, textAlign: 'right' }}>YTD {gbp(EXP_YTD[c.id])}</span>
+                <span className="ps-mono" style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-heading)' }}>{ytd > 0 ? gbp(ytd) : '—'}</span>
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', width: 96, textAlign: 'right' }}>YTD</span>
                 <span style={{ display: 'inline-flex', width: 16, height: 16, color: 'var(--text-muted)', transform: isOpen ? 'rotate(180deg)' : 'none' }}>{di('chevron-down')}</span>
               </button>
               {isOpen && (
                 <div style={{ padding: '0 var(--card-pad) 12px' }}>
-                  {MONTHS.slice(0, 6).map((m, mi) => {
+                  {MONTHS.map((m, mi) => {
                     const id = c.id + '-' + mi;
+                    const amt = amtOf(c.id, mi);
                     const rc = rcById[links[id]];
                     return (
                       <div
@@ -536,7 +539,9 @@ function Expenses({
                         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                       >
                         <span style={{ width: 36, color: 'var(--text-muted)' }}>{m}</span>
-                        <span className="ps-mono" style={{ flex: 1, color: 'var(--text-body)' }}>{gbp(amtOf(c.id, mi))}</span>
+                        <span className="ps-mono" style={{ flex: 1, color: amt != null ? 'var(--text-body)' : 'var(--text-faint)' }}>
+                          {amt != null ? gbp(amt) : '—'}
+                        </span>
                         {rc ? (
                           <button
                             onClick={() => onView(rc, id)}
@@ -558,7 +563,7 @@ function Expenses({
                           label="Edit entry"
                           variant="ghost"
                           size="sm"
-                          onClick={() => onEditEntry({ mode: 'edit', category: c.id, houseId, month: mi, amount: amtOf(c.id, mi) })}
+                          onClick={() => onEditEntry({ mode: amt != null ? 'edit' : 'add', category: c.id, houseId, month: mi, amount: amt ?? undefined })}
                         >
                           {di('pencil')}
                         </IconButton>
@@ -671,6 +676,20 @@ function RentInner() {
     }
   }, [houses, houseId]);
 
+  useEffect(() => {
+    if (!firebaseConfigured || !user || !houseId) return;
+    return subscribeExpenseEntries(user.uid, houseId, year, (entries) => {
+      const v: Record<string, number> = {};
+      const l: Record<string, string> = {};
+      for (const e of entries) {
+        v[e.category + '-' + e.month] = e.amount;
+        if (e.receiptId) l[e.category + '-' + e.month] = e.receiptId;
+      }
+      setVals(v);
+      setLinks(l);
+    });
+  }, [user?.uid, houseId, year]);
+
   const house = houses.find((h) => h.id === houseId) ?? houses[0];
   const roomCount = houses.reduce((s, h) => s + h.rooms.length, 0);
   const period = MONTH_NAMES[month] + ' ' + year;
@@ -768,6 +787,7 @@ function RentInner() {
       {view === 'expenses' && (
         <Expenses
           houseId={houseId}
+          year={year}
           links={links}
           receipts={receipts}
           vals={vals}
@@ -850,8 +870,18 @@ function RentInner() {
         houses={houses}
         year={year}
         onClose={() => setEntry(null)}
-        onSubmit={(p: EntrySubmit) => {
-          if (p.category && p.month != null) setVals((v) => ({ ...v, [p.category + '-' + p.month]: p.value }));
+        onSubmit={async (p: EntrySubmit) => {
+          if (p.category && p.month != null) {
+            if (firebaseConfigured && user) {
+              await saveExpenseEntry(user.uid, {
+                houseId: p.houseId, year: p.year, month: p.month, category: p.category,
+                amount: p.value, notes: p.notes, description: p.description,
+                contractor: p.contractor, roomId: p.roomId,
+              });
+            } else {
+              setVals((v) => ({ ...v, [p.category + '-' + p.month]: p.value }));
+            }
+          }
           setEntry(null);
           toast(p.mode === 'edit' ? 'Entry updated' : 'Entry added');
         }}
@@ -878,7 +908,17 @@ function RentInner() {
         ctx={picker}
         receipts={unlinked}
         onClose={() => setPicker(null)}
-        onPick={(rc) => { setLinks((l) => ({ ...l, [picker!.entryId]: rc.id })); setPicker(null); toast('Receipt attached'); }}
+        onPick={async (rc) => {
+          const entryId = picker!.entryId;
+          const [cat, monthStr] = entryId.split('-');
+          if (firebaseConfigured && user) {
+            await linkExpenseReceipt(user.uid, houseId, year, parseInt(monthStr), cat, rc.id);
+          } else {
+            setLinks((l) => ({ ...l, [entryId]: rc.id }));
+          }
+          setPicker(null);
+          toast('Receipt attached');
+        }}
         onUpload={() => { setPicker(null); setUpload(true); }}
       />
 
@@ -886,7 +926,18 @@ function RentInner() {
       <ReceiptViewerDialog
         ctx={viewer}
         onClose={() => setViewer(null)}
-        onUnlink={(c) => { setLinks((l) => { const n = { ...l }; delete n[c.entryId!]; return n; }); setViewer(null); toast('Receipt unlinked'); }}
+        onUnlink={async (c) => {
+          if (c.entryId) {
+            const [cat, monthStr] = c.entryId.split('-');
+            if (firebaseConfigured && user) {
+              await linkExpenseReceipt(user.uid, houseId, year, parseInt(monthStr), cat, null);
+            } else {
+              setLinks((l) => { const n = { ...l }; delete n[c.entryId!]; return n; });
+            }
+          }
+          setViewer(null);
+          toast('Receipt unlinked');
+        }}
       />
     </ResponsiveShell>
   );

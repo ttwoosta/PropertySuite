@@ -107,6 +107,39 @@ export function subscribeReceipts(
   );
 }
 
+// ── Expense entries ───────────────────────────────────────────────────────────
+
+function expensesCol(uid: string) { return collection(db!, 'users', uid, 'expense_entries'); }
+
+export interface ExpenseEntry {
+  houseId: string; year: number; month: number; category: string; amount: number;
+  receiptId?: string | null; notes?: string; description?: string; contractor?: string; roomId?: string;
+}
+
+export async function saveExpenseEntry(uid: string, entry: ExpenseEntry): Promise<void> {
+  const id = `${entry.houseId}_${entry.year}_${entry.month}_${entry.category}`;
+  await setDoc(doc(expensesCol(uid), id), entry);
+}
+
+export async function linkExpenseReceipt(
+  uid: string, houseId: string, year: number, month: number, category: string, receiptId: string | null,
+): Promise<void> {
+  const id = `${houseId}_${year}_${month}_${category}`;
+  await setDoc(doc(expensesCol(uid), id), { houseId, year, month, category, receiptId, amount: 0 }, { merge: true });
+}
+
+export function subscribeExpenseEntries(
+  uid: string, houseId: string, year: number,
+  onData: (entries: (ExpenseEntry & { id: string })[]) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(expensesCol(uid), where('houseId', '==', houseId), where('year', '==', year)),
+    (snap) => onData(snap.docs.map((d) => ({ ...(d.data() as ExpenseEntry), id: d.id }))),
+    (err) => onError?.(err),
+  );
+}
+
 // ── Rent entries ──────────────────────────────────────────────────────────────
 
 export async function addRentEntry(uid: string, entry: Omit<RentEntry, 'id'>): Promise<string> {
