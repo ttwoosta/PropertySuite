@@ -10,6 +10,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
 } from 'firebase/firestore';
@@ -24,6 +25,37 @@ function receiptsCol(uid: string) { return collection(db!, 'users', uid, 'rent_r
 function receiptDoc(uid: string, id: string) { return doc(db!, 'users', uid, 'rent_receipts', id); }
 function entriesCol(uid: string) { return collection(db!, 'users', uid, 'rent_entries'); }
 function entryDoc(uid: string, id: string) { return doc(db!, 'users', uid, 'rent_entries', id); }
+
+// ── Grid cells ───────────────────────────────────────────────────────────────
+
+function gridCol(uid: string) { return collection(db!, 'users', uid, 'rent_grid'); }
+
+export interface GridCellEntry {
+  houseId: string; year: number; monthIdx: number; field: string; value: number;
+}
+
+export async function saveGridCell(uid: string, entry: GridCellEntry): Promise<void> {
+  const id = `${entry.houseId}_${entry.year}_${entry.monthIdx}_${entry.field.replace('.', '_')}`;
+  if (entry.value === null) {
+    await deleteDoc(doc(gridCol(uid), id));
+  } else {
+    await setDoc(doc(gridCol(uid), id), entry);
+  }
+}
+
+export function subscribeGridCells(
+  uid: string,
+  houseId: string,
+  year: number,
+  onData: (cells: GridCellEntry[]) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(gridCol(uid), where('houseId', '==', houseId), where('year', '==', year)),
+    (snap) => onData(snap.docs.map((d) => d.data() as GridCellEntry)),
+    (err) => onError?.(err),
+  );
+}
 
 // ── Houses ────────────────────────────────────────────────────────────────────
 

@@ -441,7 +441,8 @@ export function EditRoomDrawer({
     setTouched({ name: true, renter: true, rent: true });
     if (!isRoomFormValid(errs)) { setFormErr('Fix the highlighted fields before saving.'); return; }
     setFormErr(null);
-    const ok = await submitRoom({ ...room!, unit: name.trim(), tenant: occupied ? renter.trim() : null, rent: num(rent) });
+    const nextStatus = occupied ? (room!.status === 'Vacant' ? 'Pending' : room!.status) : 'Vacant';
+    const ok = await submitRoom({ ...room!, unit: name.trim(), tenant: occupied ? renter.trim() : null, rent: num(rent), status: nextStatus });
     if (ok) onClose();
   };
 

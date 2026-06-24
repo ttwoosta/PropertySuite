@@ -46,7 +46,7 @@ import {
   type RoomStatus,
 } from './data';
 import { firebaseConfigured } from '../../lib/firebase';
-import { addHouse as addHouseFS, saveRoom, addReceipt, addRentEntry } from '../../lib/rentService';
+import { addHouse as addHouseFS, saveRoom, addReceipt, addRentEntry, saveGridCell, subscribeGridCells } from '../../lib/rentService';
 import { AddHouseDrawer, EditRoomDrawer, AddRentDrawer, type AddRentCtx } from './forms';
 import {
   EntryWizard,
@@ -230,7 +230,37 @@ function Dashboard({ house }: { house: House }) {
 }
 
 /* ---------------- Year Grid ---------------- */
-function YearGrid({ house, year, toast }: { house: House; year: number; toast: ToastFn }) {
+function Cell({
+  rowIdx, k, value, tint, pad, edit, setEdit, setCell,
+}: {
+  rowIdx: number; k: string; value: number | null; tint: string; pad: string;
+  edit: { row: number; key: string } | null;
+  setEdit: (v: { row: number; key: string } | null) => void;
+  setCell: (rowIdx: number, key: string, val: string) => void;
+}) {
+  const on = edit && edit.row === rowIdx && edit.key === k;
+  return (
+    <td
+      onClick={() => setEdit({ row: rowIdx, key: k })}
+      style={{ padding: pad, textAlign: 'right', cursor: 'pointer', borderBottom: '1px solid var(--border-subtle)', background: tint, fontVariantNumeric: 'tabular-nums', fontSize: 'var(--text-sm)', color: value == null ? 'var(--text-faint)' : 'var(--text-body)', whiteSpace: 'nowrap' }}
+    >
+      {on ? (
+        <input
+          autoFocus
+          defaultValue={value == null ? '' : value}
+          onBlur={(e) => { setCell(rowIdx, k, e.target.value); setEdit(null); }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { setCell(rowIdx, k, (e.target as HTMLInputElement).value); setEdit(null); }
+            if (e.key === 'Escape') setEdit(null);
+          }}
+          style={{ width: 56, border: '1px solid var(--border-focus)', borderRadius: 4, padding: '2px 4px', textAlign: 'right', font: 'inherit', background: 'var(--surface-card)', color: 'var(--text-heading)', outline: 'none' }}
+        />
+      ) : value == null ? '—' : gbp(value)}
+    </td>
+  );
+}
+
+function YearGrid({ house, year, toast, uid }: { house: House; year: number; toast: ToastFn; uid: string | null }) {
   const cols: RoomCol[] = house.rooms.map((r) => ({ id: r.id, label: r.unit, house: house.name }));
   const [grid, setGrid] = useState<GridRow[]>(() => emptyGrid(cols));
   const [edit, setEdit] = useState<{ row: number; key: string } | null>(null);
@@ -240,12 +270,33 @@ function YearGrid({ house, year, toast }: { house: House; year: number; toast: T
   const showExp = filter !== 'income';
   const showInc = filter !== 'expenses';
 
-  const setCell = (rowIdx: number, key: string, val: string) =>
+  useEffect(() => {
+    if (!firebaseConfigured || !uid) return;
+    return subscribeGridCells(uid, house.id, year, (cells) => {
+      setGrid((g) => {
+        const next = g.map((r) => ({ ...r, rent: { ...r.rent } }));
+        for (const c of cells) {
+          const r = next[c.monthIdx];
+          if (!r) continue;
+          if (c.field.startsWith('rent.')) r.rent[c.field.slice(5)] = c.value;
+          else (r as unknown as Record<string, number | null>)[c.field] = c.value;
+        }
+        for (const r of next) {
+          r.rentTotal = cols.reduce((s, c) => s + (r.rent[c.id] || 0), 0);
+          const e = (r.tax || 0) + (r.water || 0) + (r.elec || 0) + (r.gas || 0) + (r.maint || 0) + (r.loan || 0);
+          r.net = r.rentTotal - e;
+        }
+        return next;
+      });
+    });
+  }, [uid, house.id, year]);
+
+  const setCell = (rowIdx: number, key: string, val: string) => {
+    const n = val === '' ? null : Number(val) || 0;
     setGrid((g) =>
       g.map((r, i) => {
         if (i !== rowIdx) return r;
         const nr: GridRow = { ...r, rent: { ...r.rent } };
-        const n = val === '' ? null : Number(val) || 0;
         if (key.startsWith('rent.')) nr.rent[key.slice(5)] = n;
         else (nr as unknown as Record<string, number | null>)[key] = n;
         const rentTotal = cols.reduce((s, c) => s + (nr.rent[c.id] || 0), 0);
@@ -255,29 +306,13 @@ function YearGrid({ house, year, toast }: { house: House; year: number; toast: T
         return nr;
       }),
     );
-
-  const Cell = ({ rowIdx, k, value, tint }: { rowIdx: number; k: string; value: number | null; tint: string }) => {
-    const on = edit && edit.row === rowIdx && edit.key === k;
-    return (
-      <td
-        onClick={() => setEdit({ row: rowIdx, key: k })}
-        style={{ padding: pad, textAlign: 'right', cursor: 'pointer', borderBottom: '1px solid var(--border-subtle)', background: tint, fontVariantNumeric: 'tabular-nums', fontSize: 'var(--text-sm)', color: value == null ? 'var(--text-faint)' : 'var(--text-body)', whiteSpace: 'nowrap' }}
-      >
-        {on ? (
-          <input
-            autoFocus
-            defaultValue={value == null ? '' : value}
-            onBlur={(e) => { setCell(rowIdx, k, e.target.value); setEdit(null); }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { setCell(rowIdx, k, (e.target as HTMLInputElement).value); setEdit(null); }
-              if (e.key === 'Escape') setEdit(null);
-            }}
-            style={{ width: 56, border: '1px solid var(--border-focus)', borderRadius: 4, padding: '2px 4px', textAlign: 'right', font: 'inherit', background: 'var(--surface-card)', color: 'var(--text-heading)', outline: 'none' }}
-          />
-        ) : value == null ? '—' : gbp(value)}
-      </td>
-    );
+    if (firebaseConfigured && uid && n !== null) {
+      saveGridCell(uid, { houseId: house.id, year, monthIdx: rowIdx, field: key, value: n }).catch(console.error);
+    }
   };
+
+  const cp = { pad, edit, setEdit, setCell };
+
   const th: CSSProperties = { padding: pad, textAlign: 'right', fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: 'var(--surface-card)' };
   const grpTh: CSSProperties = { ...th, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 'var(--tracking-caps)', fontSize: '11px', borderBottom: '1px solid var(--border-default)', color: 'var(--text-faint)' };
 
@@ -335,19 +370,19 @@ function YearGrid({ house, year, toast }: { house: House; year: number; toast: T
                   </td>
                   {showExp && (
                     <>
-                      <Cell rowIdx={i} k="tax" value={r.tax} tint="color-mix(in srgb, var(--blue-400) 6%, transparent)" />
-                      <Cell rowIdx={i} k="water" value={r.water} tint="color-mix(in srgb, var(--green-400) 6%, transparent)" />
-                      <Cell rowIdx={i} k="elec" value={r.elec} tint="color-mix(in srgb, var(--amber-400) 7%, transparent)" />
-                      <Cell rowIdx={i} k="gas" value={r.gas} tint="color-mix(in srgb, var(--red-400) 6%, transparent)" />
+                      <Cell {...cp} rowIdx={i} k="tax" value={r.tax} tint="color-mix(in srgb, var(--blue-400) 6%, transparent)" />
+                      <Cell {...cp} rowIdx={i} k="water" value={r.water} tint="color-mix(in srgb, var(--green-400) 6%, transparent)" />
+                      <Cell {...cp} rowIdx={i} k="elec" value={r.elec} tint="color-mix(in srgb, var(--amber-400) 7%, transparent)" />
+                      <Cell {...cp} rowIdx={i} k="gas" value={r.gas} tint="color-mix(in srgb, var(--red-400) 6%, transparent)" />
                     </>
                   )}
                   {showInc && cols.map((c) => (
-                    <Cell key={c.id} rowIdx={i} k={'rent.' + c.id} value={r.rent[c.id]} tint="color-mix(in srgb, var(--green-500) 5%, transparent)" />
+                    <Cell {...cp} key={c.id} rowIdx={i} k={'rent.' + c.id} value={r.rent[c.id]} tint="color-mix(in srgb, var(--green-500) 5%, transparent)" />
                   ))}
                   {showExp && (
                     <>
-                      <Cell rowIdx={i} k="maint" value={r.maint} tint="color-mix(in srgb, var(--gray-400) 7%, transparent)" />
-                      <Cell rowIdx={i} k="loan" value={r.loan} tint="color-mix(in srgb, var(--green-600) 6%, transparent)" />
+                      <Cell {...cp} rowIdx={i} k="maint" value={r.maint} tint="color-mix(in srgb, var(--gray-400) 7%, transparent)" />
+                      <Cell {...cp} rowIdx={i} k="loan" value={r.loan} tint="color-mix(in srgb, var(--green-600) 6%, transparent)" />
                     </>
                   )}
                   <td style={{ padding: pad, textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontSize: 'var(--text-sm)', borderBottom: '1px solid var(--border-subtle)', color: r.net < 0 ? 'var(--danger-fg)' : 'var(--success-fg)', whiteSpace: 'nowrap' }}>
@@ -721,7 +756,7 @@ function RentInner() {
   return (
     <ResponsiveShell sidebar={sidebar} topBar={topBar}>
       {view === 'home' && house && <Dashboard house={house} />}
-      {view === 'grid' && house && <YearGrid key={house.id} house={house} year={year} toast={toast} />}
+      {view === 'grid' && house && <YearGrid key={house.id} house={house} year={year} toast={toast} uid={user?.uid ?? null} />}
       {view === 'houses' && house && (
         <Houses
           house={house}
