@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 project/   HTML/CSS/JS design prototypes — source of truth for visual design
 chats/     Chat transcripts from the design session — explains design intent
 app/       Vite + React + TypeScript implementation (the real app)
-angular/   Angular 22 implementation (skeleton, in progress)
+angular/   Angular 22 implementation (substantially complete, mirrors the React app)
 functions/ Firebase Cloud Functions (Node 24, TypeScript)
 ```
 
@@ -41,10 +41,11 @@ To run a single test file: `npx vitest run src/lib/rentValidation.test.ts`
 ### Angular app (run from `angular/`)
 
 ```sh
-npm start          # ng serve (dev server)
+npm start          # ng serve (dev server at http://localhost:4200)
 npm run build      # ng build
 npm run watch      # ng build --watch
-npm run test       # ng test
+npm run test       # ng test (Karma/Jasmine unit tests)
+npm run e2e        # Playwright e2e tests
 ```
 
 ### Cloud Functions (run from `functions/`)
@@ -64,16 +65,18 @@ npx firebase emulators:start   # Auth :9099, Firestore :9000, Storage :9199, UI 
 
 ## Firebase / environment setup
 
-Copy `app/.env.example` → `app/.env` and fill in Firebase credentials. Without credentials the app runs in **demo mode**: any email/password signs in and the TenantBridge AI assistant is disabled. The runtime flag is `firebaseConfigured` in `src/lib/firebase.ts`.
+**React app:** Copy `app/.env.example` → `app/.env` and fill in Firebase credentials. Without credentials the app runs in **demo mode**: any email/password signs in and the TenantBridge AI assistant is disabled. The runtime flag is `firebaseConfigured` in `src/lib/firebase.ts`. When `firebaseConfigured` is true and the hostname is `localhost`, the app auto-connects to the Firebase emulators.
+
+**Angular app:** Firebase config lives in `angular/src/environments/environment.ts` (real credentials already present). The `useEmulator: true` flag means `ng serve` always connects to local emulators — no `.env` needed. `environment.prod.ts` is the production variant.
 
 Firebase products in use:
 - **Firebase Auth** — email/password sign-in
-- **Firestore** — Maintenance tasks and Rent houses/receipts (per-user subcollections)
+- **Firestore** — per-user subcollections under `users/{uid}/`: `tasks`, `rent_houses`, `rent_receipts`, `rent_entries`, `expense_entries`
 - **Firebase Storage** — receipt uploads in the Rent app
-- **Firebase AI Logic** — TenantBridge AI assistant (`gemini-2.5-flash` via `GoogleAIBackend`)
+- **Firebase AI Logic** — TenantBridge AI assistant (`gemini-2.5-flash` via `GoogleAIBackend`, React only)
 - **Cloud Functions** — `functions/src/index.ts` (skeleton; no deployed functions yet)
 
-When `firebaseConfigured` is true and the hostname is `localhost`, the app auto-connects to the Firebase emulators. The `firebase.json` hosting target points to `app/dist`.
+The `firebase.json` hosting target points to `app/dist`.
 
 ## App architecture (React)
 
@@ -87,7 +90,7 @@ When `firebaseConfigured` is true and the hostname is `localhost`, the app auto-
 | `/tenant-bridge` | `TenantApp` |
 | `/profile` | `ProfileApp` |
 
-Each sub-app lives under `src/apps/<name>/`. When Firebase is configured, Maintenance and Rent persist data to Firestore under `users/{uid}/tasks` and `users/{uid}/rent_houses` / `users/{uid}/rent_receipts` respectively. In demo mode (no Firebase), they seed from static `SEED_*` exports in `data.ts` and mutate local React state.
+Each sub-app lives under `src/apps/<name>/`. When Firebase is configured, Maintenance persists to `users/{uid}/tasks` and Rent persists to `users/{uid}/rent_houses`, `rent_receipts`, `rent_entries`, and `expense_entries`. In demo mode (no Firebase), they seed from static `SEED_*` exports in `data.ts` and mutate local React state.
 
 ### Service / validation / hook layering
 
@@ -108,6 +111,26 @@ The codebase uses a three-layer pattern for data-mutating operations:
 - `forms.tsx` — `AddHouseDrawer`, `EditRoomDrawer`, `AddRentDrawer`
 
 Component-level e2e tests (`*.e2e.test.tsx`) live alongside components in `src/apps/rent/`; they are excluded from the default Vitest run by the glob pattern in `vitest.config.ts`.
+
+## App architecture (Angular)
+
+The Angular app mirrors the React app's route structure and Firestore collections. All components are standalone (no NgModules).
+
+**File layout:**
+- `src/app/features/<name>/` — one folder per route (login, launcher, maintenance, rent, tenant, profile)
+- `src/app/services/` — injectable services: `AuthService`, `MaintenanceService`, `RentService`, `CurrencyService`, `NavService`, `ToastService`
+- `src/app/models/<domain>.dto.ts` — Firestore document shapes (what's stored)
+- `src/app/models/<domain>.vm.ts` — UI view models (computed/derived fields ready for templates)
+- `src/app/components/shared/` — Angular ports of React's `src/components/ui.tsx`: `ResponsiveShellComponent`, `ModalComponent`, `RightDrawerComponent`, `ToastHostComponent`, `SpinnerComponent`, `IconComponent`, etc.
+- `src/app/guards/auth.guard.ts` — `authGuard` (redirect to `/login` if not signed in), `guestGuard` (redirect to `/` if signed in)
+
+**Signals pattern:** Services expose Angular 22 signals, not RxJS subjects, for auth/UI state. Example: `AuthService` has `status = signal<AuthStatus>('resolving')` and `user = signal<SuiteUser | null>(null)`, exposed as readonly. Data reads from Firestore still return Observables via `collectionData()`.
+
+**DTO → VM mapping:** Each service has private mapping functions (e.g., `houseDtoToVm`, `receiptDtoToVm`) that convert raw Firestore DTOs to view models. Components consume VMs only; they never import from `*.dto.ts`.
+
+**Routes:** All feature components are lazy-loaded via `loadComponent`. Same URL paths as React (`/`, `/maintenance`, `/rent`, `/tenant-bridge`, `/profile`).
+
+**Demo mode:** Same `isConfigured` check as React — if `environment.firebaseConfig.apiKey === 'YOUR_API_KEY'`, `AuthService` falls back to localStorage. Since the real config is already in `environment.ts`, this path is rarely exercised.
 
 ## Design system (`src/ds-vendor/`)
 

@@ -8,7 +8,13 @@ import { NavService } from '../../services/nav.service';
 import { RentService, CATEGORIES, MONTH_NAMES, MONTHS } from '../../services/rent.service';
 import { ToastService } from '../../services/toast.service';
 import { CurrencyService } from '../../services/currency.service';
-import { HouseVm, RoomVm, ReceiptVm, RentEntryVm } from '../../models/rent.vm';
+import { HouseVm, RoomVm, ReceiptVm } from '../../models/rent.vm';
+
+import { PeriodPickerComponent } from './period-picker.component';
+import { EntryWizardComponent, EntryCtx, EntrySubmit } from './entry-wizard.component';
+import { UploadReceiptDrawerComponent, UploadedReceiptEvent } from './upload-receipt-drawer.component';
+import { ReceiptPickerDialogComponent, PickerCtx } from './receipt-picker-dialog.component';
+import { ReceiptViewerDialogComponent, ViewerCtx } from './receipt-viewer-dialog.component';
 
 type RentView = 'home' | 'grid' | 'houses' | 'expenses' | 'receipts';
 
@@ -26,7 +32,14 @@ const SEED_HOUSES: Omit<HouseVm, 'id'>[] = [
 @Component({
   selector: 'ps-rent-app',
   standalone: true,
-  imports: [RouterLink, FormsModule, NgTemplateOutlet],
+  imports: [
+    RouterLink, FormsModule, NgTemplateOutlet,
+    PeriodPickerComponent,
+    EntryWizardComponent,
+    UploadReceiptDrawerComponent,
+    ReceiptPickerDialogComponent,
+    ReceiptViewerDialogComponent,
+  ],
   template: `
     <div class="ps-shell" [class.drawer-open]="drawerOpen()" [attr.data-theme]="theme()">
       <div class="ps-scrim" (click)="drawerOpen.set(false)"></div>
@@ -64,6 +77,7 @@ const SEED_HOUSES: Omit<HouseVm, 'id'>[] = [
           <button class="ps-hamburger" (click)="drawerOpen.set(!drawerOpen())" style="background:none;border:none;padding:8px;cursor:pointer;display:inline-flex;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-heading)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
+
           <!-- House selector -->
           <div style="position:relative;">
             <button (click)="houseOpen.set(!houseOpen())" style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--border-default);border-radius:var(--radius-md);background:var(--surface-card);cursor:pointer;font-size:var(--text-sm);font-weight:500;color:var(--text-heading);" data-testid="house-selector">
@@ -79,9 +93,28 @@ const SEED_HOUSES: Omit<HouseVm, 'id'>[] = [
               </div>
             }
           </div>
+
+          <!-- Period picker -->
+          <div style="position:relative;">
+            <button
+              (click)="periodOpen.set(!periodOpen())"
+              style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--border-default);border-radius:var(--radius-md);background:var(--surface-sunken);cursor:pointer;font-size:var(--text-sm);font-weight:600;color:var(--text-heading);"
+              data-testid="period-selector"
+            >
+              📅 {{ monthNames[month()] }} {{ year() }}
+            </button>
+            <ps-period-picker
+              [open]="periodOpen()"
+              [month]="month()"
+              [year]="year()"
+              (closed)="periodOpen.set(false)"
+              (picked)="onPeriodPicked($event)"
+            ></ps-period-picker>
+          </div>
+
           <div style="flex:1;"></div>
-          <a [routerLink]="['/profile']" style="text-decoration:none;">
-            <div style="width:34px;height:34px;border-radius:50%;background:var(--brand-tint);display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:700;color:var(--brand);">{{ initials() }}</div>
+          <a [routerLink]="['/profile']" style="text-decoration:none;" (click)="navService.rememberApp('/rent', 'Rent Tracker')">
+            <div style="width:34px;height:34px;border-radius:50%;background:var(--brand-tint);display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:700;color:var(--brand);" data-testid="avatar">{{ initials() }}</div>
           </a>
         </div>
 
@@ -220,8 +253,8 @@ const SEED_HOUSES: Omit<HouseVm, 'id'>[] = [
               <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
                 <label style="font-size:var(--text-sm);font-weight:600;color:var(--text-heading);">Month</label>
                 <select class="ps-select" [(ngModel)]="rentForm.month" name="month">
-                  @for (m of monthNames; track $index) {
-                    <option [value]="$index + 1">{{ m }}</option>
+                  @for (m of monthNames; track $index; let i = $index) {
+                    <option [value]="i + 1">{{ m }}</option>
                   }
                 </select>
               </div>
@@ -240,6 +273,39 @@ const SEED_HOUSES: Omit<HouseVm, 'id'>[] = [
         </div>
       </div>
     }
+
+    <!-- Entry wizard (expense add/edit) -->
+    <ps-entry-wizard
+      [ctx]="entryCtx()"
+      [houses]="houses()"
+      [year]="year()"
+      (closed)="entryCtx.set(null)"
+      (submitted)="onEntrySubmit($event)"
+    ></ps-entry-wizard>
+
+    <!-- Upload receipt drawer -->
+    <ps-upload-receipt-drawer
+      [open]="uploadOpen()"
+      [houses]="houses()"
+      (closed)="uploadOpen.set(false)"
+      (uploaded)="onReceiptUploaded($event)"
+    ></ps-upload-receipt-drawer>
+
+    <!-- Receipt picker (attach to entry) -->
+    <ps-receipt-picker-dialog
+      [ctx]="pickerCtx()"
+      [receipts]="unlinkedReceipts()"
+      (closed)="pickerCtx.set(null)"
+      (picked)="onReceiptPicked($event)"
+      (uploadRequested)="pickerCtx.set(null); uploadOpen.set(true)"
+    ></ps-receipt-picker-dialog>
+
+    <!-- Receipt viewer -->
+    <ps-receipt-viewer-dialog
+      [ctx]="viewerCtx()"
+      (closed)="viewerCtx.set(null)"
+      (unlinked)="onReceiptUnlinked($event)"
+    ></ps-receipt-viewer-dialog>
 
     <!-- View templates -->
     <ng-template #dashboardView>
@@ -322,7 +388,11 @@ const SEED_HOUSES: Omit<HouseVm, 'id'>[] = [
 
     <ng-template #receiptsView>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-        <h2 style="margin:0;font-size:var(--text-2xl);font-weight:700;color:var(--text-heading);">Receipts</h2>
+        <div>
+          <h2 style="margin:0;font-size:var(--text-2xl);font-weight:700;color:var(--text-heading);">Receipts</h2>
+          <p style="margin:4px 0 0;font-size:var(--text-sm);color:var(--text-muted);">{{ receipts().length }} receipts on file</p>
+        </div>
+        <button (click)="uploadOpen.set(true)" class="ps-btn ps-btn-primary" data-testid="btn-upload-receipt">Upload receipt</button>
       </div>
       @if (receipts().length === 0) {
         <div style="text-align:center;padding:60px;color:var(--text-muted);">
@@ -332,7 +402,11 @@ const SEED_HOUSES: Omit<HouseVm, 'id'>[] = [
       } @else {
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;" data-testid="receipts-grid">
           @for (r of receipts(); track r.id) {
-            <div style="background:var(--surface-card);border:1px solid var(--border-default);border-radius:var(--radius-lg);overflow:hidden;cursor:pointer;" data-testid="receipt-card">
+            <div
+              (click)="viewerCtx.set({ receipt: r })"
+              style="background:var(--surface-card);border:1px solid var(--border-default);border-radius:var(--radius-lg);overflow:hidden;cursor:pointer;"
+              data-testid="receipt-card"
+            >
               <div style="height:80px;display:flex;align-items:center;justify-content:center;" [style.background]="catColor(r.category)">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/></svg>
               </div>
@@ -349,20 +423,64 @@ const SEED_HOUSES: Omit<HouseVm, 'id'>[] = [
 
     <ng-template #expensesView>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-        <h2 style="margin:0;font-size:var(--text-2xl);font-weight:700;color:var(--text-heading);">Expenses</h2>
+        <div>
+          <h2 style="margin:0;font-size:var(--text-2xl);font-weight:700;color:var(--text-heading);">Expenses · {{ year() }}</h2>
+          <p style="margin:4px 0 0;font-size:var(--text-sm);color:var(--text-muted);">Tap a month to edit or attach a receipt</p>
+        </div>
+        <button (click)="openAddEntry(expOpen() ?? 'maint')" class="ps-btn ps-btn-primary" data-testid="btn-add-entry">+ Add entry</button>
       </div>
       <div style="background:var(--surface-card);border:1px solid var(--border-default);border-radius:var(--radius-lg);overflow:hidden;" data-testid="expenses-list">
-        @for (cat of categories; track cat.id) {
-          <div style="border-bottom:1px solid var(--border-subtle);">
-            <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;">
-              <div style="width:36px;height:36px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;" [style.background]="cat.color + '22'">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" [attr.stroke]="cat.color" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/></svg>
+        @for (cat of categories; track cat.id; let i = $index) {
+          <div [style.borderTop]="i ? '1px solid var(--border-subtle)' : 'none'">
+            <!-- Category header row -->
+            <button
+              (click)="expOpen.set(expOpen() === cat.id ? null : cat.id)"
+              style="width:100%;display:flex;align-items:center;gap:12px;padding:14px 20px;background:transparent;border:none;cursor:pointer;"
+              [attr.data-testid]="'cat-row-' + cat.id"
+            >
+              <span style="width:30px;height:30px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex:none;" [style.background]="cat.color + '22'" [style.color]="cat.color">●</span>
+              <span style="flex:1;text-align:left;font-size:var(--text-base);font-weight:600;color:var(--text-heading);">{{ cat.label }}</span>
+              <span class="ps-mono" style="font-size:var(--text-sm);font-weight:700;color:var(--text-heading);">{{ catYtd(cat.id) > 0 ? fmt(catYtd(cat.id)) : '—' }}</span>
+              <span style="font-size:var(--text-xs);color:var(--text-muted);width:96px;text-align:right;">YTD</span>
+              <span style="font-size:14px;color:var(--text-muted);" [style.transform]="expOpen() === cat.id ? 'rotate(180deg)' : 'none'">▼</span>
+            </button>
+
+            <!-- Month breakdown -->
+            @if (expOpen() === cat.id) {
+              <div style="padding:0 20px 12px;" data-testid="cat-months">
+                @for (m of monthsArr; track $index; let mi = $index) {
+                  <div
+                    style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-sm);font-size:var(--text-sm);"
+                    [attr.data-testid]="'month-row-' + cat.id + '-' + mi"
+                  >
+                    <span style="width:36px;color:var(--text-muted);">{{ m }}</span>
+                    <span class="ps-mono" style="flex:1;" [style.color]="expVals()[cat.id + '-' + mi] != null ? 'var(--text-body)' : 'var(--text-faint)'">
+                      {{ expVals()[cat.id + '-' + mi] != null ? fmt(expVals()[cat.id + '-' + mi]) : '—' }}
+                    </span>
+                    <!-- View/attach receipt -->
+                    @if (expLinks()[cat.id + '-' + mi]) {
+                      <button
+                        (click)="viewLinkedReceipt(cat.id, mi)"
+                        style="display:inline-flex;align-items:center;gap:6px;padding:4px 9px;cursor:pointer;border-radius:999px;border:1px solid var(--border-default);background:var(--surface-card);font-size:var(--text-xs);font-weight:600;color:var(--text-body);"
+                        data-testid="btn-view-receipt"
+                      >Receipt</button>
+                    } @else {
+                      <button
+                        (click)="pickerCtx.set({ entryId: cat.id + '-' + mi, label: cat.label + ' · ' + m })"
+                        style="display:inline-flex;align-items:center;gap:5px;padding:4px 9px;cursor:pointer;border-radius:999px;border:1px dashed var(--border-strong);background:transparent;font-size:var(--text-xs);font-weight:600;color:var(--text-muted);"
+                        data-testid="btn-attach-receipt"
+                      >📎 Attach</button>
+                    }
+                    <!-- Edit entry button -->
+                    <button
+                      (click)="openEditEntry(cat.id, mi)"
+                      style="background:none;border:none;cursor:pointer;padding:4px;color:var(--text-muted);font-size:14px;"
+                      data-testid="btn-edit-entry"
+                    >✏</button>
+                  </div>
+                }
               </div>
-              <div style="flex:1;">
-                <p style="margin:0;font-weight:600;font-size:var(--text-sm);color:var(--text-heading);">{{ cat.label }}</p>
-              </div>
-              <p class="ps-mono" style="margin:0;font-size:var(--text-sm);font-weight:600;color:var(--text-muted);">YTD: {{ fmt(0) }}</p>
-            </div>
+            }
           </div>
         }
       </div>
@@ -402,50 +520,70 @@ const SEED_HOUSES: Omit<HouseVm, 'id'>[] = [
 export class RentAppComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private rentService = inject(RentService);
-  private navService = inject(NavService);
+  readonly navService = inject(NavService);
   readonly toastService = inject(ToastService);
   readonly currencyService = inject(CurrencyService);
 
-  readonly view = signal<RentView>('home');
-  readonly drawerOpen = signal(false);
-  readonly loading = signal(true);
-  readonly saveBusy = signal(false);
-  readonly houseOpen = signal(false);
+  readonly view         = signal<RentView>('home');
+  readonly drawerOpen   = signal(false);
+  readonly loading      = signal(true);
+  readonly saveBusy     = signal(false);
+  readonly houseOpen    = signal(false);
   readonly addHouseOpen = signal(false);
-  readonly houses = signal<HouseVm[]>([]);
-  readonly receipts = signal<ReceiptVm[]>([]);
-  readonly houseId = signal<string>('');
-  readonly year = signal(new Date().getFullYear());
+  readonly houses       = signal<HouseVm[]>([]);
+  readonly receipts     = signal<ReceiptVm[]>([]);
+  readonly houseId      = signal<string>('');
+  readonly year         = signal(new Date().getFullYear());
+  readonly month        = signal(new Date().getMonth());
+  readonly periodOpen   = signal(false);
   readonly editRoomTarget = signal<RoomVm | null>(null);
-  readonly addRentTarget = signal<RoomVm | null>(null);
-  readonly theme = signal<'light' | 'dark'>('light');
+  readonly addRentTarget  = signal<RoomVm | null>(null);
+  readonly theme        = signal<'light' | 'dark'>('light');
+
+  // Expense entries state
+  readonly expVals  = signal<Record<string, number>>({});
+  readonly expLinks = signal<Record<string, string>>({});
+  readonly expOpen  = signal<string | null>('maint');
+
+  // Dialog / drawer controllers
+  readonly entryCtx   = signal<EntryCtx | null>(null);
+  readonly uploadOpen = signal(false);
+  readonly pickerCtx  = signal<PickerCtx | null>(null);
+  readonly viewerCtx  = signal<ViewerCtx | null>(null);
 
   readonly categories = CATEGORIES;
   readonly monthNames = MONTH_NAMES;
-  readonly monthsArr = MONTHS;
+  readonly monthsArr  = MONTHS;
 
   readonly houseForm = { address: '', rooms: 4, rent: 750 };
   readonly roomForm: Partial<RoomVm> & { status: string } = { unit: '', tenant: '', rent: 750, status: 'Vacant' };
   readonly rentForm = { tenant: '', amountDue: 0, amountPaid: 0, month: new Date().getMonth() + 1, year: new Date().getFullYear() };
 
   readonly navItems = [
-    { view: 'home' as RentView,     label: 'Dashboard', iconPath: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10' },
-    { view: 'grid' as RentView,     label: 'Year Grid', iconPath: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z' },
-    { view: 'houses' as RentView,   label: 'Houses',    iconPath: 'M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18z M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2 M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2 M10 6h4 M10 10h4 M10 14h4 M10 18h4' },
+    { view: 'home'     as RentView, label: 'Dashboard', iconPath: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10' },
+    { view: 'grid'     as RentView, label: 'Year Grid', iconPath: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z' },
+    { view: 'houses'   as RentView, label: 'Houses',    iconPath: 'M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18z M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2 M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2 M10 6h4 M10 10h4 M10 14h4 M10 18h4' },
     { view: 'expenses' as RentView, label: 'Expenses',  iconPath: 'M18 20V10 M12 20V4 M6 20v-6' },
     { view: 'receipts' as RentView, label: 'Receipts',  iconPath: 'M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z M16 8H8m8 4H8m8 4H8' },
   ];
 
-  readonly currentHouse = computed(() => this.houses().find((h) => h.id === this.houseId()));
-  readonly totalPaid = computed(() => this.currentHouse()?.rooms.reduce((s, r) => s + r.paid, 0) ?? 0);
-  readonly totalDue  = computed(() => this.currentHouse()?.rooms.reduce((s, r) => s + r.rent, 0) ?? 0);
-  readonly outstanding = computed(() => Math.max(0, this.totalDue() - this.totalPaid()));
-  readonly occupiedCount = computed(() => this.currentHouse()?.rooms.filter((r) => r.status !== 'Vacant').length ?? 0);
-  readonly totalRooms   = computed(() => this.currentHouse()?.rooms.length ?? 0);
+  readonly currentHouse   = computed(() => this.houses().find((h) => h.id === this.houseId()));
+  readonly totalPaid      = computed(() => this.currentHouse()?.rooms.reduce((s, r) => s + r.paid, 0) ?? 0);
+  readonly totalDue       = computed(() => this.currentHouse()?.rooms.reduce((s, r) => s + r.rent, 0) ?? 0);
+  readonly outstanding    = computed(() => Math.max(0, this.totalDue() - this.totalPaid()));
+  readonly occupiedCount  = computed(() => this.currentHouse()?.rooms.filter((r) => r.status !== 'Vacant').length ?? 0);
+  readonly totalRooms     = computed(() => this.currentHouse()?.rooms.length ?? 0);
   readonly totalCollected = computed(() => this.currencyService.format(this.totalPaid()));
 
+  readonly unlinkedReceipts = computed(() => {
+    const linkedIds = new Set(Object.values(this.expLinks()));
+    return this.receipts().filter((r) => !linkedIds.has(r.id));
+  });
+
   initials = () => this.authService.user()?.initials ?? '?';
-  fmt = (n: number) => this.currencyService.format(n);
+  fmt      = (n: number) => this.currencyService.format(n);
+  catColor = (catId: string) => CATEGORIES.find((c) => c.id === catId)?.color ?? '#6E7773';
+  catYtd   = (catId: string) => MONTHS.reduce((s, _, mi) => s + (this.expVals()[catId + '-' + mi] ?? 0), 0);
 
   private subs: Subscription[] = [];
 
@@ -467,7 +605,6 @@ export class RentAppComponent implements OnInit, OnDestroy {
       const s2 = this.rentService.getReceipts(uid).subscribe((r) => this.receipts.set(r));
       this.subs.push(s1, s2);
     } else {
-      // Demo mode: seed local state
       this.houses.set(SEED_HOUSES.map((h, i) => ({ ...h, id: `house-${i}` })));
       if (this.houses().length) this.houseId.set(this.houses()[0].id);
       this.loading.set(false);
@@ -485,6 +622,112 @@ export class RentAppComponent implements OnInit, OnDestroy {
   openAddHouse(): void { this.houseOpen.set(false); Object.assign(this.houseForm, { address: '', rooms: 4, rent: 750 }); this.addHouseOpen.set(true); }
   openEditRoom(room: RoomVm): void { Object.assign(this.roomForm, { ...room }); this.editRoomTarget.set(room); }
   openAddRent(room: RoomVm): void { Object.assign(this.rentForm, { tenant: room.tenant, amountDue: room.rent, amountPaid: 0, month: new Date().getMonth() + 1, year: this.year() }); this.addRentTarget.set(room); }
+
+  onPeriodPicked(p: { month: number; year: number }): void {
+    this.month.set(p.month);
+    this.year.set(p.year);
+  }
+
+  openAddEntry(category: string): void {
+    const house = this.currentHouse();
+    this.entryCtx.set({ mode: 'add', category, houseId: house?.id });
+  }
+
+  openEditEntry(catId: string, monthIdx: number): void {
+    const amt = this.expVals()[catId + '-' + monthIdx];
+    this.entryCtx.set({
+      mode: amt != null ? 'edit' : 'add',
+      category: catId,
+      houseId: this.houseId(),
+      month: monthIdx,
+      amount: amt,
+    });
+  }
+
+  viewLinkedReceipt(catId: string, monthIdx: number): void {
+    const entryId = catId + '-' + monthIdx;
+    const receiptId = this.expLinks()[entryId];
+    const receipt = this.receipts().find((r) => r.id === receiptId);
+    if (receipt) this.viewerCtx.set({ receipt, entryId });
+  }
+
+  async onEntrySubmit(p: EntrySubmit): Promise<void> {
+    const uid = this.authService.user()?.uid;
+    try {
+      if (uid) {
+        await this.rentService.saveExpenseEntry(uid, {
+          houseId: p.houseId, year: p.year, month: p.month, category: p.category,
+          amount: p.value, notes: p.notes, description: p.description,
+          contractor: p.contractor, roomId: p.roomId,
+        });
+      } else {
+        this.expVals.update((v) => ({ ...v, [p.category + '-' + p.month]: p.value }));
+      }
+      this.entryCtx.set(null);
+      this.toastService.show(p.mode === 'edit' ? 'Entry updated' : 'Entry added');
+    } catch {
+      this.toastService.show('Failed to save entry', 'error');
+    }
+  }
+
+  async onReceiptUploaded(ev: UploadedReceiptEvent): Promise<void> {
+    const uid = this.authService.user()?.uid;
+    try {
+      if (uid) {
+        await this.rentService.addReceipt(uid, {
+          merchant: ev.merchant, category: ev.category, houseId: ev.houseId,
+          date: ev.date, amount: ev.amount, notes: ev.notes, storagePath: ev.storagePath,
+          uploadedAt: { toDate: () => new Date() } as any,
+        });
+      } else {
+        const newReceipt: ReceiptVm = {
+          id: 'local-' + Date.now(), merchant: ev.merchant, category: ev.category,
+          houseId: ev.houseId, date: ev.date, amount: ev.amount, notes: ev.notes,
+          storagePath: ev.storagePath, uploadedAt: new Date(), kind: ev.kind,
+        };
+        this.receipts.update((rs) => [newReceipt, ...rs]);
+      }
+      this.uploadOpen.set(false);
+      this.toastService.show('Receipt uploaded');
+    } catch {
+      this.toastService.show('Failed to upload receipt', 'error');
+    }
+  }
+
+  async onReceiptPicked(receipt: ReceiptVm): Promise<void> {
+    const ctx = this.pickerCtx();
+    if (!ctx) return;
+    const [cat, monthStr] = ctx.entryId.split('-');
+    const uid = this.authService.user()?.uid;
+    try {
+      if (uid) {
+        await this.rentService.linkExpenseReceipt(uid, this.houseId(), this.year(), +monthStr, cat, receipt.id);
+      } else {
+        this.expLinks.update((l) => ({ ...l, [ctx.entryId]: receipt.id }));
+      }
+      this.pickerCtx.set(null);
+      this.toastService.show('Receipt attached');
+    } catch {
+      this.toastService.show('Failed to attach receipt', 'error');
+    }
+  }
+
+  async onReceiptUnlinked(ctx: ViewerCtx): Promise<void> {
+    if (!ctx.entryId) return;
+    const [cat, monthStr] = ctx.entryId.split('-');
+    const uid = this.authService.user()?.uid;
+    try {
+      if (uid) {
+        await this.rentService.linkExpenseReceipt(uid, this.houseId(), this.year(), +monthStr, cat, null as any);
+      } else {
+        this.expLinks.update((l) => { const n = { ...l }; delete n[ctx.entryId!]; return n; });
+      }
+      this.viewerCtx.set(null);
+      this.toastService.show('Receipt unlinked');
+    } catch {
+      this.toastService.show('Failed to unlink receipt', 'error');
+    }
+  }
 
   async submitAddHouse(): Promise<void> {
     const uid = this.authService.user()?.uid;
@@ -559,8 +802,5 @@ export class RentAppComponent implements OnInit, OnDestroy {
   pctWidth(room: RoomVm): string {
     if (room.rent <= 0) return '0%';
     return `${Math.min(100, Math.round((room.paid / room.rent) * 100))}%`;
-  }
-  catColor(catId: string): string {
-    return CATEGORIES.find((c) => c.id === catId)?.color ?? '#6E7773';
   }
 }
