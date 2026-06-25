@@ -1,10 +1,25 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { signal } from '@angular/core';
 import { App } from './app';
+import { AuthService } from './services/auth.service';
+
+const mockAuth = {
+  status: signal('resolving' as const),
+  user: signal(null),
+  signIn: vi.fn(),
+  signUp: vi.fn(),
+  signOut: vi.fn(),
+};
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: mockAuth },
+      ],
     }).compileComponents();
   });
 
@@ -14,10 +29,10 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render title', async () => {
+  it('shows spinner while resolving', () => {
     const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, property-suite');
+    fixture.detectChanges();
+    const native: HTMLElement = fixture.nativeElement;
+    expect(native.querySelector('.ps-spin')).toBeTruthy();
   });
 });

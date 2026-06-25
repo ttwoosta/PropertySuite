@@ -5,11 +5,11 @@ import { LoginComponent } from './login.component';
 import { AuthService } from '../../services/auth.service';
 
 const mockAuth = {
-  status: signal('out'),
+  status: signal('out' as const),
   user: signal(null),
-  signIn: jasmine.createSpy('signIn').and.returnValue(Promise.resolve()),
-  signUp: jasmine.createSpy('signUp').and.returnValue(Promise.resolve()),
-  signOut: jasmine.createSpy('signOut').and.returnValue(Promise.resolve()),
+  signIn: vi.fn().mockResolvedValue(undefined),
+  signUp: vi.fn().mockResolvedValue(undefined),
+  signOut: vi.fn().mockResolvedValue(undefined),
 };
 
 describe('LoginComponent', () => {
@@ -17,6 +17,9 @@ describe('LoginComponent', () => {
   let fixture: ComponentFixture<LoginComponent>;
 
   beforeEach(async () => {
+    vi.clearAllMocks();
+    mockAuth.signIn.mockResolvedValue(undefined);
+
     await TestBed.configureTestingModule({
       imports: [LoginComponent],
       providers: [
@@ -47,7 +50,7 @@ describe('LoginComponent', () => {
   });
 
   it('shows error when signIn rejects', async () => {
-    mockAuth.signIn.and.returnValue(Promise.reject(new Error('Wrong password')));
+    mockAuth.signIn.mockRejectedValueOnce(new Error('Wrong password'));
     component.email = 'a@b.com';
     component.password = 'wrong';
     await component.submit();
@@ -55,7 +58,6 @@ describe('LoginComponent', () => {
     const err = fixture.nativeElement.querySelector('[data-testid="login-error"]');
     expect(err).toBeTruthy();
     expect(err.textContent).toContain('Wrong password');
-    mockAuth.signIn.and.returnValue(Promise.resolve());
   });
 
   it('calls signIn with email and password', async () => {

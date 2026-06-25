@@ -6,17 +6,19 @@ import { AuthService } from '../../services/auth.service';
 import { NavService } from '../../services/nav.service';
 
 const mockAuth = {
-  status: signal('in'),
+  status: signal('in' as const),
   user: signal({ uid: '1', email: 'a@b.com', name: 'Alice Brown', initials: 'AB' }),
 };
 
-const mockNav = { rememberApp: jasmine.createSpy() };
+const mockNav = { rememberApp: vi.fn() };
 
 describe('LauncherComponent', () => {
   let component: LauncherComponent;
   let fixture: ComponentFixture<LauncherComponent>;
 
   beforeEach(async () => {
+    vi.clearAllMocks();
+
     await TestBed.configureTestingModule({
       imports: [LauncherComponent],
       providers: [
@@ -51,7 +53,7 @@ describe('LauncherComponent', () => {
     expect(native.textContent).toContain('Alice');
   });
 
-  it('calls rememberApp when profile link is clicked', () => {
+  it('calls rememberApp when rememberApps() is called', () => {
     component.rememberApps();
     expect(mockNav.rememberApp).toHaveBeenCalledWith('/', 'Apps');
   });
