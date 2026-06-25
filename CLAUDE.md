@@ -8,11 +8,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 project/   HTML/CSS/JS design prototypes — source of truth for visual design
 chats/     Chat transcripts from the design session — explains design intent
 app/       Vite + React + TypeScript implementation (the real app)
+angular/   Angular 22 implementation (skeleton, in progress)
+functions/ Firebase Cloud Functions (Node 24, TypeScript)
 ```
 
 The `project/` folder is a Claude Design handoff bundle. Read the chat transcripts in `chats/` and the HTML prototypes in `project/` to understand visual intent before making UI changes.
 
-## Commands (run from `app/`)
+## Commands
+
+### React app (run from `app/`)
 
 ```sh
 npm run dev        # dev server at http://localhost:5173
@@ -22,11 +26,41 @@ npm run preview    # preview the production build
 ```
 
 ```sh
-npm run test        # run tests once (vitest)
-npm run test:watch  # vitest in watch mode
+npm run test              # run all unit tests once (vitest, excludes integration + e2e)
+npm run test:watch        # vitest in watch mode
+npm run test:unit         # run named unit/hook test files with verbose output
+npm run test:integration  # rentService Firestore integration test (requires emulators)
+npm run test:e2e          # Playwright e2e tests (auto-starts dev server)
+npm run test:all          # unit + integration + e2e in sequence
 ```
 
-Tests live at `src/apps/rent/forms.test.tsx` (Vitest + jsdom + @testing-library/react). DS-vendor components, `RightDrawer`, and `currency` helpers are mocked via `vi.mock()`.
+Unit tests use Vitest + jsdom + @testing-library/react. Integration tests hit real Firestore via the emulators and are excluded from the default `test` run. E2E tests (Playwright, `app/e2e/`) run against `http://localhost:5173` and auto-start the dev server if not already running.
+
+To run a single test file: `npx vitest run src/lib/rentValidation.test.ts`
+
+### Angular app (run from `angular/`)
+
+```sh
+npm start          # ng serve (dev server)
+npm run build      # ng build
+npm run watch      # ng build --watch
+npm run test       # ng test
+```
+
+### Cloud Functions (run from `functions/`)
+
+```sh
+npm run build      # tsc compile to lib/
+npm run serve      # build + start functions emulator only
+npm run deploy     # firebase deploy --only functions (requires build + lint to pass)
+npm run logs       # tail function logs
+```
+
+### Firebase emulators (run from repo root)
+
+```sh
+npx firebase emulators:start   # Auth :9099, Firestore :9000, Storage :9199, UI enabled
+```
 
 ## Firebase / environment setup
 
@@ -37,10 +71,11 @@ Firebase products in use:
 - **Firestore** — Maintenance tasks and Rent houses/receipts (per-user subcollections)
 - **Firebase Storage** — receipt uploads in the Rent app
 - **Firebase AI Logic** — TenantBridge AI assistant (`gemini-2.5-flash` via `GoogleAIBackend`)
+- **Cloud Functions** — `functions/src/index.ts` (skeleton; no deployed functions yet)
 
-When `firebaseConfigured` is true and the hostname is `localhost`, the app auto-connects to the Firebase emulators (Auth :9099, Firestore :9000, Storage :9199). Start them from the repo root with `npx firebase emulators:start`.
+When `firebaseConfigured` is true and the hostname is `localhost`, the app auto-connects to the Firebase emulators. The `firebase.json` hosting target points to `app/dist`.
 
-## App architecture
+## App architecture (React)
 
 `App.tsx` is a thin auth shell. `AuthGate` renders one of three states: `resolving` → `<Spinner>`, `out` → `<Login>`, `in` → the four-route SPA.
 
@@ -54,7 +89,25 @@ When `firebaseConfigured` is true and the hostname is `localhost`, the app auto-
 
 Each sub-app lives under `src/apps/<name>/`. When Firebase is configured, Maintenance and Rent persist data to Firestore under `users/{uid}/tasks` and `users/{uid}/rent_houses` / `users/{uid}/rent_receipts` respectively. In demo mode (no Firebase), they seed from static `SEED_*` exports in `data.ts` and mutate local React state.
 
-The Rent app is split across multiple files: `RentApp.tsx` (shell + state), `charts.tsx` (income/expense charts), `entries.tsx` (year grid and receipt list), `forms.tsx` (drawer forms — `AddHouseDrawer`, `EditRoomDrawer`, `AddRentDrawer`).
+### Service / validation / hook layering
+
+The codebase uses a three-layer pattern for data-mutating operations:
+
+1. **Validation** (`src/lib/*Validation.ts`) — pure functions, no imports, no side effects. Testable without mocks.
+2. **Hooks** (`src/hooks/use*Form.ts`) — state machines (`idle | loading | success | error`) that accept async save functions as params, keeping form components thin and tests injection-friendly.
+3. **Services** (`src/lib/*Service.ts`) — the only files that import `firebase/firestore` for their domain. Pure async I/O with no React or demo-mode logic.
+
+### Rent app components
+
+`RentApp.tsx` (shell + state) coordinates these views:
+- `Dashboard.tsx` — summary cards and KPIs
+- `charts.tsx` — income/expense charts
+- `YearGrid.tsx` — monthly rent grid per room
+- `entries.tsx` — year grid and receipt list
+- `Houses.tsx` / `Receipts.tsx` / `Expenses.tsx` — house management, receipt uploads, expense tracking
+- `forms.tsx` — `AddHouseDrawer`, `EditRoomDrawer`, `AddRentDrawer`
+
+Component-level e2e tests (`*.e2e.test.tsx`) live alongside components in `src/apps/rent/`; they are excluded from the default Vitest run by the glob pattern in `vitest.config.ts`.
 
 ## Design system (`src/ds-vendor/`)
 

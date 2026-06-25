@@ -1,0 +1,11 @@
+[
+  {
+    "name": "Maple House",
+    "address": "12 Maple Street, London",
+    "rooms": [
+      { "id": "r1", "unit": "Room 1", "tenant": "James T.", "rent": 850, "paid": 850, "status": "Paid", "beds": 1 },
+      { "id": "r2", "unit": "Room 2", "tenant": "Sara M.",  "rent": 750, "paid": 375, "status": "Partial", "beds": 1 },
+      { "id": "r3", "unit": "Room 3", "tenant": "",          "rent": 700, "paid": 0,   "status": "Vacant", "beds": 1 }
+    ]
+  }
+]

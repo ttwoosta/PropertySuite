@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Boiler service",
+    "icon": "flame",
+    "tint": "#D2731C",
+    "property": "elm",
+    "dueDateMs": 0,
+    "recurrence": "Quarterly",
+    "durationMin": 90,
+    "bucket": "Long",
+    "done": false,
+    "prep": []
+  },
+  {
+    "name": "Smoke alarm test",
+    "icon": "shield",
+    "tint": "#D23A40",
+    "property": "elm",
+    "dueDateMs": 0,
+    "recurrence": "Monthly",
+    "durationMin": 30,
+    "bucket": "Quick",
+    "done": false,
+    "prep": []
+  }
+]
