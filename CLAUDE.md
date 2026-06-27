@@ -22,11 +22,20 @@ npm run preview    # preview the production build
 ```
 
 ```sh
-npm run test        # run tests once (vitest)
-npm run test:watch  # vitest in watch mode
+npm run test             # all vitest tests (unit + component), excludes integration and Playwright
+npm run test:watch       # vitest in watch mode
+npm run test:unit        # pure unit tests only (validation + hooks)
+npm run test:integration # rentService against Firestore emulator (requires emulators running)
+npm run test:e2e         # Playwright browser tests against dev server (auto-starts)
+npm run test:all         # unit + integration + e2e
 ```
 
-Tests live at `src/apps/rent/forms.test.tsx` (Vitest + jsdom + @testing-library/react). DS-vendor components, `RightDrawer`, and `currency` helpers are mocked via `vi.mock()`.
+The test suite has four tiers:
+
+1. **Unit** (`src/lib/*Validation.test.ts`, `src/hooks/*.test.ts`) — pure functions, no mocks needed.
+2. **Component** (`src/apps/rent/*.e2e.test.tsx`, `src/apps/rent/forms.test.tsx`) — Vitest + jsdom + @testing-library/react. DS-vendor components, `RightDrawer`, and `currency` helpers are mocked via `vi.mock()`. Note: despite the `.e2e` name, these run under Vitest (not Playwright).
+3. **Integration** (`src/lib/rentService.integration.test.ts`) — Vitest against real Firestore emulator on port 9000. Excluded from `npm run test` by vitest config.
+4. **E2E** (`app/e2e/`) — Playwright, Chromium only, targets `http://localhost:5173`. Auto-starts the dev server unless it's already running.
 
 ## Firebase / environment setup
 
@@ -34,7 +43,7 @@ Copy `app/.env.example` → `app/.env` and fill in Firebase credentials. Without
 
 Firebase products in use:
 - **Firebase Auth** — email/password sign-in
-- **Firestore** — Maintenance tasks and Rent houses/receipts (per-user subcollections)
+- **Firestore** — per-user subcollections under `users/{uid}/`: `tasks`, `rent_houses`, `rent_receipts`, `rent_entries`, `rent_grid`, `expense_entries`
 - **Firebase Storage** — receipt uploads in the Rent app
 - **Firebase AI Logic** — TenantBridge AI assistant (`gemini-2.5-flash` via `GoogleAIBackend`)
 
@@ -52,9 +61,17 @@ When `firebaseConfigured` is true and the hostname is `localhost`, the app auto-
 | `/tenant-bridge` | `TenantApp` |
 | `/profile` | `ProfileApp` |
 
-Each sub-app lives under `src/apps/<name>/`. When Firebase is configured, Maintenance and Rent persist data to Firestore under `users/{uid}/tasks` and `users/{uid}/rent_houses` / `users/{uid}/rent_receipts` respectively. In demo mode (no Firebase), they seed from static `SEED_*` exports in `data.ts` and mutate local React state.
+Each sub-app lives under `src/apps/<name>/`. When Firebase is configured, Maintenance and Rent persist data to Firestore (see collection list above). In demo mode (no Firebase), they seed from static `SEED_*` exports in `data.ts` and mutate local React state.
 
-The Rent app is split across multiple files: `RentApp.tsx` (shell + state), `charts.tsx` (income/expense charts), `entries.tsx` (year grid and receipt list), `forms.tsx` (drawer forms — `AddHouseDrawer`, `EditRoomDrawer`, `AddRentDrawer`).
+The Rent app is split across multiple files: `RentApp.tsx` (thin orchestration shell), `Dashboard.tsx` (overview), `Houses.tsx` (room list per house), `YearGrid.tsx` (monthly rent grid), `Expenses.tsx` (expense tracking), `Receipts.tsx` (receipt list), `charts.tsx` (income/expense charts), `entries.tsx` (entry wizard + upload/picker/viewer drawers), `forms.tsx` (drawer forms — `AddHouseDrawer`, `EditRoomDrawer`, `AddRentDrawer`).
+
+## Service and validation layers
+
+Each domain has a dedicated service and validation file in `src/lib/`:
+
+- **`*Service.ts`** — the *only* files that import `firebase/firestore` for their domain. Pure async I/O, no React, no demo-mode logic. The component tree calls these directly.
+- **`*Validation.ts`** — pure functions with no imports or side effects. Return typed error objects used by forms.
+- **`src/hooks/useTaskForm.ts` / `useRentForm.ts`** — state machine hooks (`idle → loading → success|error`). Accept async save functions as parameters so forms stay thin and tests can inject `vi.fn()` without touching Firestore.
 
 ## Design system (`src/ds-vendor/`)
 

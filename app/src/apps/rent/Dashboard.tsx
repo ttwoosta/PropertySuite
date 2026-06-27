@@ -4,6 +4,7 @@ import { Icon } from '../../components/ui';
 import { useRentEntries, type House, type RoomStatus, MONTH_NAMES, gbp } from './data';
 
 const STATUS_BADGE: Record<RoomStatus, 'success' | 'warning' | 'neutral'> = {
+  Occupied: 'neutral',
   Paid: 'success',
   Partial: 'warning',
   Pending: 'neutral',

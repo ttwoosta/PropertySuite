@@ -11,7 +11,7 @@ import {
 
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export type RoomStatus = 'Paid' | 'Partial' | 'Pending' | 'Vacant';
+export type RoomStatus = 'Occupied' | 'Paid' | 'Partial' | 'Pending' | 'Vacant';
 
 export interface Room {
   id: string;

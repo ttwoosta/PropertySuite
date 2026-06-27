@@ -3,6 +3,7 @@ import { di } from '../../components/ui';
 import { type House, type Room, type RoomStatus, gbp } from './data';
 
 const STATUS_BADGE: Record<RoomStatus, 'success' | 'warning' | 'neutral'> = {
+  Occupied: 'neutral',
   Paid: 'success',
   Partial: 'warning',
   Pending: 'neutral',

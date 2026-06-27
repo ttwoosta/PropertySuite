@@ -437,6 +437,10 @@ export function EditRoomDrawer({
   const errs = validateRoomForm({ name, renter, rent: num(rent), occupied });
   const show = (k: keyof typeof errs) => (touched[k] ? errs[k] : null);
 
+  useEffect(() => {
+    if (renter && status === 'Vacant') setStatus('Occupied');
+  }, [renter]);
+
   const submit = async () => {
     setTouched({ name: true, renter: true, rent: true });
     if (!isRoomFormValid(errs)) { setFormErr('Fix the highlighted fields before saving.'); return; }
