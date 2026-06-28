@@ -1,0 +1,83 @@
+@if (ctx(); as c) {
+  <div class="viewer">
+    <div class="viewer__scrim" (click)="rent.viewerCtx.set(null)"></div>
+    <div class="viewer__panel">
+      <div class="viewer__head">
+        <div class="viewer__head-main">
+          <span class="viewer__merchant">{{ c.receipt.merchant }}</span>
+          <ps-badge tone="neutral" size="sm">{{ catLabel(c.receipt) }}</ps-badge>
+        </div>
+        <div class="viewer__actions">
+          <ps-icon-button label="Open in new tab" variant="ghost" size="sm" (clicked)="openExternal()">
+            <ps-icon name="external-link" [size]="16"></ps-icon>
+          </ps-icon-button>
+          <ps-icon-button label="Download" variant="ghost" size="sm">
+            <ps-icon name="download" [size]="16"></ps-icon>
+          </ps-icon-button>
+          <ps-icon-button label="Close" variant="ghost" size="sm" (clicked)="rent.viewerCtx.set(null)">
+            <ps-icon name="x" [size]="16"></ps-icon>
+          </ps-icon-button>
+        </div>
+      </div>
+
+      <div class="viewer__body">
+        <div class="viewer__stage">
+          @switch (previewMode()) {
+            @case ('placeholder') {
+              <div class="faux-empty">
+                <ps-icon [name]="c.receipt.kind === 'none' ? 'file-x' : 'image-off'" [size]="34"></ps-icon>
+                <span>{{ c.receipt.kind === 'none' ? 'No file attached' : 'No preview available' }}</span>
+              </div>
+            }
+            @case ('image') {
+              <img class="faux-img" [src]="c.receipt.url" alt="" />
+            }
+            @case ('paper') {
+              <div class="paper">
+                @if (c.receipt.kind === 'pdf') {
+                  <span class="paper__pdf">PDF</span>
+                }
+                <div class="paper__merchant">{{ c.receipt.merchant }}</div>
+                <div class="paper__date">{{ c.receipt.date }}</div>
+                <div class="paper__rule paper__rule--dash"></div>
+                @for (row of split(c.receipt); track row.k) {
+                  <div class="paper__row">
+                    <span>{{ row.k }}</span><span class="paper__num">{{ currency.format(row.v) }}</span>
+                  </div>
+                }
+                <div class="paper__rule paper__rule--solid"></div>
+                <div class="paper__total">
+                  <span>TOTAL</span><span class="paper__num">{{ currency.format(c.receipt.amount) }}</span>
+                </div>
+                <div class="paper__dots">· · · · · · · · · · · ·</div>
+              </div>
+            }
+          }
+        </div>
+
+        <div class="viewer__info">
+          <div class="viewer__info-top">
+            <span class="viewer__date">{{ c.receipt.dateLong || c.receipt.date }}</span>
+            <span class="ps-mono viewer__amount">{{ currency.format(c.receipt.amount) }}</span>
+          </div>
+          @if (c.receipt.notes) {
+            <div class="viewer__notes">{{ c.receipt.notes }}</div>
+          }
+        </div>
+      </div>
+
+      @if (fromEntry()) {
+        <div class="viewer__foot">
+          <button class="unlink" [class.unlink--confirm]="confirm()" [disabled]="busy()" (click)="unlink()">
+            @if (busy()) {
+              <ps-btn-spin></ps-btn-spin>
+            } @else {
+              <ps-icon [name]="confirm() ? 'alert-triangle' : 'unlink'" [size]="16"></ps-icon>
+            }
+            {{ busy() ? 'Unlinking…' : confirm() ? 'Confirm unlink' : 'Unlink from entry' }}
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}

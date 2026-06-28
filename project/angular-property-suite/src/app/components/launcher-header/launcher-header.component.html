@@ -1,0 +1,16 @@
+<header class="header">
+  <div class="header__brand">
+    <img src="assets/logo-mark.svg" width="34" height="34" alt="" />
+    <span class="header__wordmark">Property Suite</span>
+  </div>
+
+  <a
+    class="header__profile"
+    [href]="profileHref"
+    title="Profile"
+    aria-label="Profile"
+    (click)="rememberApp()"
+  >
+    <ps-avatar [name]="user.name" size="md"></ps-avatar>
+  </a>
+</header>

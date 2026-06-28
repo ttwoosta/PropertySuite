@@ -1,0 +1,131 @@
+<div class="ps-fade">
+  <div class="grid__toolbar">
+    <ps-segmented
+      ariaLabel="Filter columns"
+      [options]="filterOptions"
+      [value]="filter()"
+      (changed)="filter.set($any($event))"
+    ></ps-segmented>
+    <span class="grid__hint">Click any cell to edit · Enter to save</span>
+    <div class="grid__toolbar-end">
+      <ps-segmented
+        ariaLabel="Density"
+        [options]="densityOptions"
+        [value]="dense() ? 'compact' : 'comfortable'"
+        (changed)="dense.set($event === 'compact')"
+      ></ps-segmented>
+      <ps-button variant="ghost" size="md" (clicked)="exportCsv()">
+        <ps-icon name="download" [size]="16"></ps-icon>Export CSV
+      </ps-button>
+    </div>
+  </div>
+
+  <ps-card padding="0" class="grid__card">
+    <div class="ps-scroll-x grid__scroll">
+      <table class="grid__table" [class.grid__table--dense]="dense()">
+        <thead>
+          <tr>
+            <th class="grp grp--left"></th>
+            @if (showExp()) {
+              <th class="grp" colspan="4">Utilities &amp; Tax</th>
+            }
+            @if (showInc()) {
+              <th class="grp grp--income" [attr.colspan]="cols().length">Rent Income</th>
+            }
+            @if (showExp()) {
+              <th class="grp" colspan="2">Other Expenses</th>
+            }
+            <th class="grp">Net</th>
+          </tr>
+          <tr>
+            <th class="th th--left">Month</th>
+            @if (showExp()) {
+              @for (c of utilCols; track c.key) {
+                <th class="th">{{ c.label }}</th>
+              }
+            }
+            @if (showInc()) {
+              @for (c of cols(); track c.id) {
+                <th class="th">{{ c.label }}</th>
+              }
+            }
+            @if (showExp()) {
+              @for (c of otherCols; track c.key) {
+                <th class="th">{{ c.label }}</th>
+              }
+            }
+            <th class="th">Net</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of grid(); track r.month; let i = $index) {
+            <tr>
+              <td class="td td--month">{{ r.month }}</td>
+
+              @if (showExp()) {
+                @for (c of utilCols; track c.key) {
+                  <td class="td td--num" [style.background]="c.tint" (click)="startEdit(i, c.key)">
+                    @if (isEditing(i, c.key)) {
+                      <input
+                        class="td__input"
+                        autofocus
+                        [value]="editValue(r, c.key)"
+                        (blur)="commit(i, c.key, $any($event.target).value)"
+                        (keydown.enter)="commit(i, c.key, $any($event.target).value)"
+                        (keydown.escape)="cancelEdit()"
+                      />
+                    } @else {
+                      <span [class.td--empty]="cellValue(r, c.key) == null">{{ display(cellValue(r, c.key)) }}</span>
+                    }
+                  </td>
+                }
+              }
+
+              @if (showInc()) {
+                @for (c of cols(); track c.id) {
+                  <td class="td td--num" [style.background]="rentTint" (click)="startEdit(i, 'rent.' + c.id)">
+                    @if (isEditing(i, 'rent.' + c.id)) {
+                      <input
+                        class="td__input"
+                        autofocus
+                        [value]="editValue(r, 'rent.' + c.id)"
+                        (blur)="commit(i, 'rent.' + c.id, $any($event.target).value)"
+                        (keydown.enter)="commit(i, 'rent.' + c.id, $any($event.target).value)"
+                        (keydown.escape)="cancelEdit()"
+                      />
+                    } @else {
+                      <span [class.td--empty]="cellValue(r, 'rent.' + c.id) == null">{{ display(cellValue(r, 'rent.' + c.id)) }}</span>
+                    }
+                  </td>
+                }
+              }
+
+              @if (showExp()) {
+                @for (c of otherCols; track c.key) {
+                  <td class="td td--num" [style.background]="c.tint" (click)="startEdit(i, c.key)">
+                    @if (isEditing(i, c.key)) {
+                      <input
+                        class="td__input"
+                        autofocus
+                        [value]="editValue(r, c.key)"
+                        (blur)="commit(i, c.key, $any($event.target).value)"
+                        (keydown.enter)="commit(i, c.key, $any($event.target).value)"
+                        (keydown.escape)="cancelEdit()"
+                      />
+                    } @else {
+                      <span [class.td--empty]="cellValue(r, c.key) == null">{{ display(cellValue(r, c.key)) }}</span>
+                    }
+                  </td>
+                }
+              }
+
+              <td class="td td--net" [class.td--neg]="r.net < 0">
+                {{ r.net < 0 ? '−' : '' }}{{ currency.format(r.net) }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </ps-card>
+</div>

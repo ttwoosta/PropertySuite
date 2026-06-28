@@ -1,0 +1,80 @@
+<ps-responsive-shell>
+  <!-- sidebar -->
+  <div shell-sidebar class="side">
+    <div class="side__top">
+      <a class="side__brand" routerLink="/" title="Back to launcher">
+        <img src="assets/logo-mark.svg" width="30" height="30" alt="" />
+        <span class="side__wordmark">Rent Tracker</span>
+      </a>
+    </div>
+    <div class="side__nav">
+      @for (n of nav; track n.id) {
+        <ps-nav-item
+          [icon]="n.icon"
+          [label]="n.label"
+          [active]="currentPath() === n.path"
+          (selected)="go(n.path)"
+        ></ps-nav-item>
+      }
+    </div>
+    <div class="side__foot">
+      <span class="side__count">{{ rent.houses().length }} houses · {{ rent.roomCount() }} rooms</span>
+      <ps-theme-toggle size="sm"></ps-theme-toggle>
+    </div>
+  </div>
+
+  <!-- top bar -->
+  <div shell-topbar class="top">
+    <button class="top__hamburger" aria-label="Open menu" (click)="drawer.toggle()">
+      <ps-icon name="menu" [size]="20"></ps-icon>
+    </button>
+
+    <div class="top__chip-wrap">
+      <button class="chip" (click)="houseOpen.set(!houseOpen())">
+        <ps-icon name="house" [size]="16" class="chip__lead"></ps-icon>
+        <span class="chip__label">{{ rent.house().name }}</span>
+        <ps-icon name="chevron-down" [size]="15" class="chip__caret"></ps-icon>
+      </button>
+      <ps-popover [open]="houseOpen()" (closed)="houseOpen.set(false)">
+        @for (h of rent.houses(); track h.id) {
+          <button class="menu-item" [class.menu-item--on]="h.id === rent.houseId()" (click)="selectHouse(h.id)">
+            <ps-icon name="building-2" [size]="16"></ps-icon>{{ h.name }}
+          </button>
+        }
+      </ps-popover>
+    </div>
+
+    <div class="top__chip-wrap top__chip-wrap--center">
+      <button class="chip chip--sunken" (click)="periodOpen.set(!periodOpen())">
+        <ps-icon name="calendar" [size]="15" class="chip__lead"></ps-icon>
+        <span class="chip__label">{{ rent.monthNames[rent.month()] }} {{ rent.year() }}</span>
+      </button>
+      <ps-popover [open]="periodOpen()" align="center" (closed)="periodOpen.set(false)">
+        <app-period-picker
+          [month]="rent.month()"
+          [year]="rent.year()"
+          (picked)="rent.setPeriod($event.month, $event.year)"
+          (done)="periodOpen.set(false)"
+        ></app-period-picker>
+      </ps-popover>
+    </div>
+
+    <a class="top__avatar" routerLink="/" title="Profile" aria-label="Profile">
+      <ps-avatar [name]="userName" size="md"></ps-avatar>
+    </a>
+  </div>
+
+  <!-- routed view -->
+  <router-outlet></router-outlet>
+</ps-responsive-shell>
+
+<!-- drawers / dialogs (centrally hosted, opened via RentService signals) -->
+<app-add-house-drawer></app-add-house-drawer>
+<app-edit-room-drawer></app-edit-room-drawer>
+<app-add-rent-drawer></app-add-rent-drawer>
+<app-entry-wizard></app-entry-wizard>
+<app-upload-receipt-drawer></app-upload-receipt-drawer>
+<app-receipt-picker-dialog></app-receipt-picker-dialog>
+<app-receipt-viewer-dialog></app-receipt-viewer-dialog>
+
+<app-toast-host></app-toast-host>

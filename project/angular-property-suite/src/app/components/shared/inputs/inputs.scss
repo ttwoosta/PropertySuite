@@ -1,0 +1,111 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field__label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-heading);
+}
+
+.field__tag {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.field__tag--req {
+  color: var(--danger-fg);
+}
+
+.field__control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.field__lead {
+  position: absolute;
+  left: 11px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+.field__lead--text {
+  font-weight: var(--weight-bold);
+  color: var(--text-muted);
+  font-size: var(--text-base);
+}
+
+.field__input {
+  width: 100%;
+  padding: 10px 12px;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  color: var(--text-heading);
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+
+  &::placeholder {
+    color: var(--text-faint);
+  }
+
+  &:hover:not(:disabled) {
+    border-color: var(--border-strong);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: var(--ring);
+  }
+
+  &:disabled {
+    background: var(--surface-sunken);
+    color: var(--text-muted);
+  }
+}
+
+.field__control--icon .field__input {
+  padding-left: 34px;
+}
+
+.field__input--error {
+  border-color: var(--danger-solid);
+}
+
+.field__select {
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236E7773' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 34px;
+}
+
+.field__textarea {
+  resize: vertical;
+  min-height: 76px;
+  line-height: 1.5;
+}
+
+.field__msg {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.field__msg--error {
+  color: var(--danger-fg);
+  font-weight: var(--weight-semibold);
+}

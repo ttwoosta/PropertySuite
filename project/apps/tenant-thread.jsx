@@ -18,13 +18,17 @@
   }
 
   /* ---------- chat composer ---------- */
-  function Composer({ channel, onChannel, onSend, disabled, placeholder }) {
+  function Composer({ channel, onChannel, onSend, disabled, placeholder, tenant, onAddContact }) {
     const [text, setText] = useState('');
     const [chanOpen, setChanOpen] = useState(false);
     const ref = useRef(null);
     useEffect(() => {if (ref.current) {ref.current.style.height = 'auto';ref.current.style.height = Math.min(ref.current.scrollHeight, 180) + 'px';}}, [text]);
     useEffect(() => {window.PS.iconsSoon();}, [chanOpen, channel]);
-    const send = () => {if (!text.trim() || disabled) return;onSend(text.trim());setText('');};
+    // For SMS/Email channels, the tenant needs that contact detail on file.
+    const missing = tenant && channel === 'sms' && !tenant.phone ? 'phone' :
+    tenant && channel === 'email' && !tenant.email ? 'email' : null;
+    const blocked = disabled || !!missing;
+    const send = () => {if (!text.trim() || blocked) return;onSend(text.trim());setText('');};
     const onKey = (e) => {if (e.key === 'Enter' && !e.shiftKey) {e.preventDefault();send();}};
 
     const CHAN = [
@@ -37,6 +41,21 @@
     return (
       <div className="ps-composer" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 14, background: 'var(--surface-card)',
         border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
+        {missing &&
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 'var(--radius-md)',
+          background: 'var(--amber-50)', border: '1px solid color-mix(in srgb, var(--amber-400) 28%, transparent)' }}>
+            <span style={{ display: 'inline-flex', width: 15, height: 15, color: 'var(--amber-700)', flex: 'none' }}>
+              <i data-lucide={missing === 'phone' ? 'phone-off' : 'mail-x'}></i>
+            </span>
+            <span style={{ flex: 1, fontSize: 'var(--text-sm)', color: 'var(--amber-700)' }}>
+              No {missing === 'phone' ? 'phone number' : 'email address'} on file — add one to send {missing === 'phone' ? 'an SMS' : 'an email'}.
+            </span>
+            <Button variant="secondary" size="sm" leadingIcon={di(missing === 'phone' ? 'phone' : 'mail')}
+          onClick={() => onAddContact && onAddContact(missing)}>
+              Add {missing === 'phone' ? 'phone number' : 'email'}
+            </Button>
+          </div>
+        }
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
           {channel != null &&
           <div style={{ position: 'relative', flex: 'none' }}>
@@ -78,7 +97,7 @@
           style={{ flex: 1, resize: 'none', border: 'none', outline: 'none', background: 'transparent',
             fontFamily: 'var(--font-sans)', fontSize: 'var(--text-base)', color: 'var(--text-heading)',
             minHeight: 22, maxHeight: 180, lineHeight: 1.45, alignSelf: 'center' }} />
-          <Button variant="primary" size="md" disabled={!text.trim() || disabled} onClick={send}>
+          <Button variant="primary" size="md" disabled={!text.trim() || blocked} onClick={send}>
             <span style={{ display: 'inline-flex', width: 16, height: 16 }}><i data-lucide="send"></i></span>
           </Button>
         </div>
@@ -86,11 +105,68 @@
 
   }
 
+  /* ---------- Contact details (editable phone + email) ---------- */
+  function ContactCard({ tenant, onUpdateContact, autoEdit, onAutoEditDone }) {
+    const [editing, setEditing] = useState(false);
+    const [phone, setPhone] = useState(tenant.phone || '');
+    const [email, setEmail] = useState(tenant.email || '');
+    const inputRef = useRef(null);
+    useEffect(() => { setPhone(tenant.phone || ''); setEmail(tenant.email || ''); setEditing(false); }, [tenant.id]);
+    useEffect(() => { if (autoEdit) { setEditing(true); onAutoEditDone && onAutoEditDone(); } }, [autoEdit]);
+    useEffect(() => { if (editing && inputRef.current) inputRef.current.focus(); }, [editing]);
+    const save = () => { onUpdateContact(tenant.id, { phone: phone.trim(), email: email.trim() }); setEditing(false); };
+    const cancel = () => { setPhone(tenant.phone || ''); setEmail(tenant.email || ''); setEditing(false); };
+    const hasAny = tenant.phone || tenant.email;
+
+    const inputStyle = {
+      width: '100%', padding: '8px 11px', fontFamily: 'var(--font-sans)', fontSize: 'var(--text-base)',
+      background: 'var(--surface-card)', border: '1px solid var(--border-focus)', borderRadius: 'var(--radius-md)',
+      outline: 'none', boxShadow: 'var(--ring)', color: 'var(--text-heading)' };
+
+    const renderRow = ({ icon, label, value, editor }) =>
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '10px 0', borderTop: '1px solid var(--border-subtle)' }}>
+        <Icon name={icon} size={16} style={{ color: 'var(--text-muted)', marginTop: 2 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 600, padding: '0 0 5px' }}>{label}</div>
+          {editing ? editor :
+        <div style={{ fontSize: 'var(--text-base)', wordBreak: 'break-word',
+            color: value ? 'var(--text-heading)' : 'var(--text-muted)' }}>{value || 'Not on file'}</div>}
+        </div>
+      </div>;
+
+
+    return (
+      <Card>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+          <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-heading)' }}>Contact details</div>
+          {!editing &&
+          <Button variant="ghost" size="sm" leadingIcon={di('pencil')} onClick={() => setEditing(true)}>
+              {hasAny ? 'Edit' : 'Add'}
+            </Button>}
+        </div>
+        {renderRow({ icon: 'phone', label: 'Phone number', value: tenant.phone,
+        editor: <input ref={inputRef} type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Escape') cancel(); }} placeholder="e.g. 07700 900123"
+          style={{ ...inputStyle, fontVariantNumeric: 'tabular-nums' }} /> })}
+        {renderRow({ icon: 'mail', label: 'Email address', value: tenant.email,
+        editor: <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') save();if (e.key === 'Escape') cancel(); }} placeholder="e.g. name@email.com"
+          style={inputStyle} /> })}
+        {editing &&
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+            <Button variant="ghost" size="sm" onClick={cancel}>Cancel</Button>
+            <Button variant="primary" size="sm" onClick={save}>Save details</Button>
+          </div>}
+      </Card>);
+
+  }
+
   /* ---------- Thread view ---------- */
-  function ThreadView({ tenant, msgs, suggestions, onSend, onApprove, onDismiss, onEditDraft }) {
+  function ThreadView({ tenant, msgs, suggestions, onSend, onApprove, onDismiss, onEditDraft, onUpdateContact }) {
     const [sub, setSub] = useState('messages');
     const [channel, setChannel] = useState('sms');
     const [notes, setNotes] = useState('');
+    const [autoEditPhone, setAutoEditPhone] = useState(false);
     const tabs = [
     { value: 'messages', label: 'Messages' },
     { value: 'ai', label: 'AI Suggestions' + (suggestions.length ? ' · ' + suggestions.length : '') },
@@ -105,10 +181,18 @@
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 9, padding: 6 }}>
               {msgs.length === 0 ?
-            <EmptyState icon="message-circle" title="No messages yet" body="Send a text or write a private note to start the thread." /> :
+            <EmptyState icon="message-circle" title="No messages yet"
+              body={tenant.phone ?
+              "Send a text or write a private note to start the thread." :
+              "No phone number on file for this tenant yet — add one to start texting."}
+              action={!tenant.phone ?
+              <Button variant="secondary" size="sm" leadingIcon={di('phone')}
+                onClick={() => {setAutoEditPhone(true);setSub('profile');}}>Add phone number</Button> :
+              undefined} /> :
             msgs.map((m) => <Bubble key={m.id} m={m} />)}
             </div>
-            <Composer channel={channel} onChannel={setChannel}
+            <Composer channel={channel} onChannel={setChannel} tenant={tenant}
+          onAddContact={() => {setAutoEditPhone(true);setSub('profile');}}
           onSend={(t) => onSend({ id: 'n' + Date.now(), who: 'you', channel, text: t, when: 'Just now' })}
           placeholder={channel === 'note' ? 'Add a private note (landlord-only)…' : 'Type a message…'} />
           </div>
@@ -133,6 +217,8 @@
 
         {sub === 'profile' &&
         <div className="ps-fade" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+            <ContactCard tenant={tenant} onUpdateContact={onUpdateContact}
+            autoEdit={autoEditPhone} onAutoEditDone={() => setAutoEditPhone(false)} />
             <Card>
               <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-heading)', marginBottom: 12 }}>Preferences</div>
               {[
@@ -316,11 +402,11 @@
           }
         </div>
         {fresh &&
-        <div className="ps-scroll-x" style={{ display: 'flex', gap: 8, paddingBottom: 4 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingBottom: 4 }}>
             {CHIPS.map((c) =>
           <button key={c} onClick={() => send(c)} style={{ flex: 'none', padding: '8px 13px', cursor: 'pointer',
             background: 'var(--surface-card)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-pill)',
-            fontSize: 'var(--text-sm)', color: 'var(--text-body)', whiteSpace: 'nowrap' }}>{c}</button>
+            fontSize: 'var(--text-sm)', color: 'var(--text-body)' }}>{c}</button>
           )}
           </div>
         }

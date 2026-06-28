@@ -1,0 +1,30 @@
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: var(--radius-full);
+  background: var(--brand-tint);
+  color: var(--brand-on-tint);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.01em;
+  user-select: none;
+
+  &--sm {
+    width: 28px;
+    height: 28px;
+    font-size: var(--text-xs);
+  }
+
+  &--md {
+    width: 36px;
+    height: 36px;
+    font-size: var(--text-sm);
+  }
+
+  &--lg {
+    width: 44px;
+    height: 44px;
+    font-size: var(--text-md);
+  }
+}

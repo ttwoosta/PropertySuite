@@ -1,0 +1,21 @@
+<label class="field">
+  @if (label) {
+    <span class="field__label">{{ label }}</span>
+  }
+  <span class="field__control" [class.field__control--with-icon]="leadingIcon">
+    @if (leadingIcon) {
+      <span class="field__icon">
+        <ps-icon [name]="leadingIcon" [size]="16"></ps-icon>
+      </span>
+    }
+    <input
+      class="field__input"
+      [id]="id"
+      [type]="type"
+      [value]="value"
+      [placeholder]="placeholder"
+      [attr.autocomplete]="autocomplete"
+      (input)="onInput($event)"
+    />
+  </span>
+</label>

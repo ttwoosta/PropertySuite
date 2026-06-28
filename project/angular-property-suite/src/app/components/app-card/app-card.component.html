@@ -1,0 +1,39 @@
+@if (variant === 'full') {
+  @if (app.routePath) {
+    <a class="card" [class.card--span]="app.span" [routerLink]="app.routePath">
+      <ng-container [ngTemplateOutlet]="fullBody"></ng-container>
+    </a>
+  } @else {
+    <a class="card" [class.card--span]="app.span" [href]="app.href">
+      <ng-container [ngTemplateOutlet]="fullBody"></ng-container>
+    </a>
+  }
+} @else {
+  @if (app.routePath) {
+    <a class="cell" [class.cell--span]="app.span" [routerLink]="app.routePath">
+      <ng-container [ngTemplateOutlet]="cellBody"></ng-container>
+    </a>
+  } @else {
+    <a class="cell" [class.cell--span]="app.span" [href]="app.href">
+      <ng-container [ngTemplateOutlet]="cellBody"></ng-container>
+    </a>
+  }
+}
+
+<ng-template #fullBody>
+  <span class="card__tile" [style.background]="app.tile.bg" [style.color]="app.tile.fg">
+    <ps-icon [name]="app.icon" [size]="26"></ps-icon>
+  </span>
+  <div class="card__body">
+    <div class="card__name">{{ app.name }}</div>
+    <div class="card__tag">{{ app.tag }}</div>
+    <p class="card__desc">{{ app.desc }}</p>
+  </div>
+</ng-template>
+
+<ng-template #cellBody>
+  <span class="cell__tile" [style.background]="app.tile.bg" [style.color]="app.tile.fg">
+    <ps-icon [name]="app.icon" [size]="25"></ps-icon>
+  </span>
+  <span class="cell__name">{{ app.name }}</span>
+</ng-template>

@@ -1,0 +1,140 @@
+.pick {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* skeleton */
+.skel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skel__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 13px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.skel__thumb {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: var(--radius-sm);
+}
+
+.skel__lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.skel__line {
+  height: 11px;
+  border-radius: 4px;
+}
+.skel__line--lg {
+  width: 55%;
+}
+.skel__line--sm {
+  width: 32%;
+  height: 9px;
+}
+
+.skel__amt {
+  width: 46px;
+  height: 11px;
+  border-radius: 4px;
+}
+
+/* empty */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 38px 18px;
+}
+
+.empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-sunken);
+  color: var(--text-faint);
+}
+
+.empty__title {
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  color: var(--text-heading);
+}
+
+.empty__body {
+  max-width: 240px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* list */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list--linking {
+  pointer-events: none;
+  opacity: 0.65;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 13px;
+  cursor: pointer;
+  text-align: left;
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+
+  &:hover {
+    border-color: var(--border-focus);
+    background: var(--surface-hover);
+  }
+}
+
+.item__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.item__merchant {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--text-heading);
+}
+
+.item__date {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.item__amount {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--text-heading);
+}

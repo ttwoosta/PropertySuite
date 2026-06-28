@@ -1,0 +1,62 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ctx {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.mark {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 11px 13px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+}
+
+.mark--on {
+  background: var(--brand-tint);
+  border-color: var(--brand-on-tint);
+}
+
+.mark__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+}
+
+.mark__icon--on {
+  background: var(--brand);
+  color: #fff;
+}
+
+.mark__text {
+  flex: 1;
+}
+
+.mark__title {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--text-heading);
+}
+
+.mark__sub {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}

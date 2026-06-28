@@ -1,0 +1,99 @@
+/* ============================================================
+   GLOBAL STYLES
+   ============================================================ */
+@use 'styles/tokens';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  color: var(--text-body);
+  background: var(--surface-page);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* lucide swaps <i data-lucide> for an inline <svg>; keep strokes crisp */
+[data-lucide] {
+  width: 100%;
+  height: 100%;
+  stroke-width: 2;
+}
+
+/* shared fade-in used by login / launcher bodies */
+.ps-fade {
+  animation: ps-fade-in var(--dur-slow) var(--ease-out) both;
+}
+
+@keyframes ps-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ps-fade {
+    animation: none;
+  }
+}
+
+/* monospace tabular figures for money/dates */
+.ps-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* inline saving spinner keyframe (shared by ps-btn-spin / others) */
+@keyframes ps-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* skeleton shimmer used by the receipt picker */
+.ps-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface-sunken) 25%,
+    var(--gray-150) 37%,
+    var(--surface-sunken) 63%
+  );
+  background-size: 400% 100%;
+  animation: ps-shimmer 1.4s ease infinite;
+}
+
+@keyframes ps-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+/* thin scrollbars for horizontal scroll regions (grid, picker drums) */
+.ps-scroll-x::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.ps-scroll-x::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-pill);
+}

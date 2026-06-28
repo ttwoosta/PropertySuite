@@ -1,10 +1,12 @@
 /* Property Suite — shared client helpers (plain JS, no Babel).
-   Auth lives in sessionStorage so multi-file navigation stays signed in
-   within a tab session; all domain data is in-memory mock per page. */
+   Auth is backed by Firebase Auth (email/password); the signed-in session is
+   managed by the Firebase SDK and persists across page navigation. Currency
+   and theme remain local display preferences. Loaded AFTER lib/firebase-init.js
+   so window.PS_FB is available. */
 (function () {
-  const AUTH_KEY = 'ps_auth_v1';
   const CUR_KEY = 'ps_currency_v1';
   const PROFILE_FROM_KEY = 'ps_profile_from_v1';
+  const THEME_KEY = 'ps_theme_v1';
 
   // Supported display currencies. Default is US Dollar.
   const CURRENCIES = {
@@ -43,19 +45,115 @@
     },
   };
 
-  const Auth = {
+  // Display theme — a SINGLE shared preference across the whole suite. Every
+  // page reads the same key, so the launcher and all four apps always render in
+  // the same mode. apply() stamps `data-theme` on <html> (the design-system CSS
+  // remaps its tokens off that attribute). Applied immediately below — before
+  // any React renders — to avoid a light-mode flash on dark.
+  const themeListeners = [];
+  const Theme = {
     get() {
-      try { return JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); }
-      catch (e) { return null; }
+      try { return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light'; }
+      catch (e) { return 'light'; }
     },
-    signIn(email) {
-      const name = deriveName(email);
-      const user = { email, name, initials: initialsOf(name) };
-      localStorage.setItem(AUTH_KEY, JSON.stringify(user));
-      return user;
+    apply(mode) {
+      const m = mode === 'dark' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', m);
+      return m;
     },
-    signOut() { localStorage.removeItem(AUTH_KEY); },
+    set(mode) {
+      const m = mode === 'dark' ? 'dark' : 'light';
+      try { localStorage.setItem(THEME_KEY, m); } catch (e) {}
+      this.apply(m);
+      themeListeners.slice().forEach((cb) => { try { cb(m); } catch (e) {} });
+      return m;
+    },
+    toggle() { return this.set(this.get() === 'dark' ? 'light' : 'dark'); },
+    // Subscribe to changes (same page or other tabs). Returns an unsubscribe fn.
+    onChange(cb) {
+      themeListeners.push(cb);
+      return () => { const i = themeListeners.indexOf(cb); if (i >= 0) themeListeners.splice(i, 1); };
+    },
   };
+  Theme.apply(Theme.get());
+  // Keep every open tab in sync when the value changes elsewhere.
+  window.addEventListener('storage', (e) => {
+    if (e.key !== THEME_KEY) return;
+    const m = Theme.apply(Theme.get());
+    themeListeners.slice().forEach((cb) => { try { cb(m); } catch (err) {} });
+  });
+
+  // Firebase-Auth-backed session. ready() resolves once on the first auth-state
+  // callback (signed-in user or null); current()/get() expose the cached user
+  // synchronously; onChange(cb) subscribes to future changes.
+  const Auth = (function () {
+    const fb = window.PS_FB;
+    let current = null;
+    let listeners = [];
+    let settled = false;
+    let resolveReady;
+    const readyP = new Promise((r) => { resolveReady = r; });
+
+    function shape(u) {
+      if (!u) return null;
+      const email = u.email || '';
+      const name = u.displayName || deriveName(email);
+      return { uid: u.uid, email, name, initials: initialsOf(name) };
+    }
+
+    if (fb && fb.auth) {
+      fb.auth.onAuthStateChanged((u) => {
+        current = shape(u);
+        if (!settled) { settled = true; resolveReady(current); }
+        listeners.slice().forEach((cb) => { try { cb(current); } catch (e) {} });
+      });
+    } else {
+      console.error('[PS] Firebase Auth unavailable.');
+      settled = true; resolveReady(null);
+    }
+
+    return {
+      ready() { return readyP; },
+      current() { return current; },
+      get() { return current; }, // back-compat sync alias
+      onChange(cb) {
+        listeners.push(cb);
+        // Replay current state to late subscribers (auth may already be settled).
+        if (settled) { try { cb(current); } catch (e) {} }
+        return () => { listeners = listeners.filter((x) => x !== cb); };
+      },
+      signIn(email, password) {
+        return fb.auth.signInWithEmailAndPassword(email, password).then((c) => shape(c.user));
+      },
+      signUp(email, password) {
+        return fb.auth.createUserWithEmailAndPassword(email, password).then((c) => {
+          const name = deriveName(email);
+          return c.user.updateProfile({ displayName: name })
+            .catch(() => {})
+            .then(() => shape(c.user));
+        });
+      },
+      signOut() { return fb.auth.signOut(); },
+    };
+  })();
+
+  // Human-readable message for a Firebase Auth error.
+  function authErrorMessage(err) {
+    const code = (err && err.code) || '';
+    switch (code) {
+      case 'auth/invalid-email': return 'That email address looks invalid.';
+      case 'auth/user-disabled': return 'This account has been disabled.';
+      case 'auth/user-not-found':
+      case 'auth/wrong-password':
+      case 'auth/invalid-credential': return 'Email or password is incorrect.';
+      case 'auth/email-already-in-use': return 'An account with that email already exists.';
+      case 'auth/weak-password': return 'Password should be at least 6 characters.';
+      case 'auth/too-many-requests': return 'Too many attempts — please try again shortly.';
+      case 'auth/network-request-failed': return 'Network error — check your connection.';
+      case 'auth/operation-not-allowed': return 'Email/password sign-in is not enabled for this project.';
+      default: return (err && err.message) || 'Something went wrong. Please try again.';
+    }
+  }
 
   function deriveName(email) {
     const local = String(email || '').split('@')[0] || 'You';
@@ -102,6 +200,6 @@
   // Convenience: run icons() shortly after a React commit.
   function iconsSoon() { requestAnimationFrame(() => requestAnimationFrame(icons)); }
 
-  window.PS = { Auth, Currency, go, rememberApp, profileReturn, icons, iconsSoon, deriveName, initialsOf,
+  window.PS = { Auth, authErrorMessage, Currency, Theme, go, rememberApp, profileReturn, icons, iconsSoon, deriveName, initialsOf,
     DS: '_ds/maintenance-scheduler-design-system-02479c68-25b4-4a9d-a0b0-b79eabfdc160' };
 })();

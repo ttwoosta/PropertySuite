@@ -1,0 +1,148 @@
+<ps-right-drawer
+  [open]="!!rent.entryCtx()"
+  [icon]="edit() ? 'pencil' : 'plus'"
+  [title]="edit() ? 'Edit entry' : 'Add entry'"
+  [subtitle]="catLabel()"
+  [width]="460"
+  (closed)="rent.entryCtx.set(null)"
+>
+  @if (rent.entryCtx()) {
+    <div class="body">
+      <ps-step-rail [step]="step()" [labels]="['Type', 'Details', 'Review']"></ps-step-rail>
+
+      @if (step() === 0) {
+        <div class="body">
+          <div>
+            <label class="lbl">Entry type</label>
+            <div class="cats">
+              @for (c of ecats; track c.key) {
+                <button
+                  class="cat"
+                  [class.cat--on]="cat() === c.key"
+                  (click)="cat.set(c.key)"
+                >
+                  <ps-icon [name]="c.icon" [size]="17"></ps-icon>{{ c.label }}
+                </button>
+              }
+            </div>
+          </div>
+          <ps-select
+            label="House"
+            [labelTag]="{ tone: 'req', label: 'required' }"
+            [value]="houseId()"
+            [error]="stepErrs()?.house ?? null"
+            [options]="houseOptions()"
+            (valueChange)="houseId.set($event)"
+          ></ps-select>
+          <ps-field-row>
+            <ps-select
+              label="Month"
+              [value]="month().toString()"
+              [options]="monthOptions"
+              (valueChange)="month.set(+$event)"
+            ></ps-select>
+            <ps-input label="Year" [value]="rent.year().toString()" [disabled]="true" [readonly]="true"></ps-input>
+          </ps-field-row>
+        </div>
+      }
+
+      @if (step() === 1 && !isMaint()) {
+        <div class="body">
+          <ps-amount-field
+            label="Amount"
+            [labelTag]="{ tone: 'req', label: 'required' }"
+            [value]="amount()"
+            [error]="stepErrs()?.amount ?? null"
+            (valueChange)="amount.set($event)"
+          ></ps-amount-field>
+          <ps-textarea
+            label="Notes"
+            [labelTag]="{ tone: 'opt', label: 'optional' }"
+            [value]="notes()"
+            placeholder="Anything worth recording"
+            (valueChange)="notes.set($event)"
+          ></ps-textarea>
+        </div>
+      }
+
+      @if (step() === 1 && isMaint()) {
+        <div class="body">
+          <ps-select
+            label="Room"
+            [labelTag]="{ tone: 'opt', label: 'optional' }"
+            [value]="roomId()"
+            [options]="roomOptions()"
+            (valueChange)="roomId.set($event)"
+          ></ps-select>
+          <ps-amount-field
+            label="Amount"
+            [labelTag]="{ tone: 'req', label: 'required' }"
+            [value]="amount()"
+            [error]="stepErrs()?.amount ?? null"
+            (valueChange)="amount.set($event)"
+          ></ps-amount-field>
+          <ps-input
+            label="Description"
+            [labelTag]="{ tone: 'req', label: 'required' }"
+            [value]="desc()"
+            [error]="stepErrs()?.desc ?? null"
+            placeholder="e.g. HVAC service"
+            (valueChange)="desc.set($event)"
+          ></ps-input>
+          <ps-input
+            label="Contractor"
+            [labelTag]="{ tone: 'opt', label: 'optional' }"
+            [value]="contractor()"
+            placeholder="e.g. PlumbPro Ltd"
+            leadingIcon="hard-hat"
+            (valueChange)="contractor.set($event)"
+          ></ps-input>
+          <ps-textarea label="Notes" [labelTag]="{ tone: 'opt', label: 'optional' }" [value]="notes()" (valueChange)="notes.set($event)"></ps-textarea>
+        </div>
+      }
+
+      @if (step() === 2) {
+        <div>
+          <div class="review-hint">Review the entry before saving.</div>
+          <div>
+            <div class="kv"><span class="kv__k">Type</span><span class="kv__v">{{ catLabel() }}</span></div>
+            <div class="kv"><span class="kv__k">House</span><span class="kv__v">{{ house()?.name || '—' }}</span></div>
+            <div class="kv"><span class="kv__k">Period</span><span class="kv__v">{{ monthName() }} {{ rent.year() }}</span></div>
+            <div class="kv"><span class="kv__k">Amount</span><span class="kv__v">{{ currency.amount2(num(amount())) }}</span></div>
+            @if (isMaint()) {
+              <div class="kv"><span class="kv__k">Room</span><span class="kv__v">{{ roomLabel() }}</span></div>
+              <div class="kv"><span class="kv__k">Description</span><span class="kv__v">{{ desc().trim() || '—' }}</span></div>
+              @if (contractor().trim()) {
+                <div class="kv"><span class="kv__k">Contractor</span><span class="kv__v">{{ contractor().trim() }}</span></div>
+              }
+            }
+            @if (notes().trim()) {
+              <div class="kv"><span class="kv__k">Notes</span><span class="kv__v">{{ notes().trim() }}</span></div>
+            }
+          </div>
+        </div>
+      }
+
+      <ps-form-error [message]="err()"></ps-form-error>
+    </div>
+  }
+
+  <ng-container drawer-footer>
+    @if (step() === 0) {
+      <ps-button variant="ghost" (clicked)="rent.entryCtx.set(null)">Cancel</ps-button>
+      <ps-button variant="primary" (clicked)="next()">Next<ps-icon name="arrow-right" [size]="16"></ps-icon></ps-button>
+    } @else if (step() === 1) {
+      <ps-button variant="ghost" (clicked)="back()"><ps-icon name="arrow-left" [size]="16"></ps-icon>Back</ps-button>
+      <ps-button variant="primary" (clicked)="next()">Next<ps-icon name="arrow-right" [size]="16"></ps-icon></ps-button>
+    } @else {
+      <ps-button variant="ghost" (clicked)="back()"><ps-icon name="arrow-left" [size]="16"></ps-icon>Back</ps-button>
+      <ps-save-cta
+        [busy]="saver.busy()"
+        busyLabel="Saving…"
+        icon="check"
+        [label]="edit() ? 'Save changes' : 'Submit entry'"
+        (clicked)="submit()"
+      ></ps-save-cta>
+    }
+  </ng-container>
+</ps-right-drawer>

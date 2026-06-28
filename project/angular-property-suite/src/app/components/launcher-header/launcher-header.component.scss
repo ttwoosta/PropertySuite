@@ -1,0 +1,37 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--surface-card) 82%, transparent);
+  backdrop-filter: blur(10px);
+
+  &__brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+  }
+
+  &__wordmark {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-tight);
+    color: var(--text-heading);
+  }
+
+  &__profile {
+    display: flex;
+    border-radius: var(--radius-full);
+    text-decoration: none;
+    transition: box-shadow var(--dur-fast) var(--ease-out);
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: var(--ring);
+    }
+  }
+}

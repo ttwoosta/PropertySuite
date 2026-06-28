@@ -1,0 +1,24 @@
+<div class="launcher">
+  <ps-launcher-header [user]="user"></ps-launcher-header>
+
+  <div class="launcher__body ps-fade">
+    <h1 class="launcher__title">Your apps</h1>
+    <p class="launcher__greeting">
+      Welcome back, {{ firstName }}. Pick a tool to get started.
+    </p>
+
+    <!-- tablet+ : full descriptive cards -->
+    <div class="launcher__grid">
+      @for (app of apps; track trackByKey($index, app)) {
+        <ps-app-card [app]="app" variant="full"></ps-app-card>
+      }
+    </div>
+
+    <!-- phone : compact icon grid -->
+    <div class="launcher__icons">
+      @for (app of apps; track trackByKey($index, app)) {
+        <ps-app-card [app]="app" variant="icon"></ps-app-card>
+      }
+    </div>
+  </div>
+</div>

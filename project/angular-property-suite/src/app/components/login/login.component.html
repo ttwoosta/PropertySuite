@@ -1,0 +1,44 @@
+<div class="login">
+  <div class="login__inner ps-fade">
+    <div class="login__brand">
+      <img src="assets/logo-mark.svg" width="38" height="38" alt="" />
+      <span class="login__wordmark">Property Suite</span>
+    </div>
+    <p class="login__subtitle">{{ heading }}</p>
+
+    <div class="login__card">
+      <form class="login__form" (submit)="submit($event)">
+        <ps-form-field
+          label="Email"
+          type="email"
+          leadingIcon="mail"
+          autocomplete="email"
+          placeholder="you@example.com"
+          [(value)]="email"
+        ></ps-form-field>
+
+        <ps-form-field
+          label="Password"
+          type="password"
+          leadingIcon="lock"
+          autocomplete="current-password"
+          placeholder="••••••••"
+          [(value)]="password"
+        ></ps-form-field>
+
+        <ps-button class="login__submit" type="submit" variant="primary" size="lg" [fullWidth]="true">
+          {{ submitLabel }}
+        </ps-button>
+      </form>
+
+      <div class="login__switch">
+        {{ mode === 'in' ? 'New here? ' : 'Already have an account? ' }}
+        <button type="button" class="login__switch-btn" (click)="toggleMode()">
+          {{ mode === 'in' ? 'Create an account' : 'Sign in' }}
+        </button>
+      </div>
+    </div>
+
+    <p class="login__demo">Demo · any email and password will sign you in</p>
+  </div>
+</div>

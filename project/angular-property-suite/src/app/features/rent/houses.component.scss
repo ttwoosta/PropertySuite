@@ -1,0 +1,90 @@
+.houses__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.houses__title-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.houses__title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.015em;
+  color: var(--text-heading);
+}
+
+.houses__addr {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.room {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+}
+
+.room--divided {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.room__unit {
+  width: 70px;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  color: var(--text-heading);
+}
+
+.room__tenant {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-base);
+  color: var(--text-body);
+}
+.room__tenant--vacant {
+  color: var(--text-faint);
+}
+
+.room__rent {
+  width: 80px;
+  text-align: right;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.room__paid {
+  width: 86px;
+  padding: 4px 6px;
+  text-align: right;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-heading);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+}
+.room__paid--zero {
+  color: var(--text-faint);
+}
+
+.room__status {
+  width: 86px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.room__actions {
+  display: flex;
+  gap: 4px;
+}

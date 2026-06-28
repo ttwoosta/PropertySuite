@@ -177,6 +177,9 @@ body {
 
 .ps-mono { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 
+.ms-app-link { transition: background var(--dur-fast) var(--ease-out); }
+.ms-app-link:hover { background: var(--surface-hover, var(--gray-100)); }
+
 i[data-lucide] { display: inline-flex; width: 100%; height: 100%; }
 /* lucide replaces <i data-lucide> with <svg class="lucide">; constrain it to its
    sized wrapper so icons keep a square aspect and stay vertically centered with text. */
@@ -187,3 +190,63 @@ svg.lucide { display: block; width: 100%; height: 100%; }
 }
 button { font-family: var(--font-sans); }
 input, textarea, select { font-family: var(--font-sans); }
+
+/* ---------- drawer form helpers ---------- */
+.ps-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-sunken);
+}
+.ps-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent,
+    color-mix(in srgb, var(--surface-card) 60%, transparent), transparent);
+  animation: ps-shimmer 1.25s ease-in-out infinite;
+}
+@keyframes ps-shimmer { to { transform: translateX(100%); } }
+
+.ps-drawer-in { animation: ps-drawer-in var(--dur-slow) var(--ease-out) both; }
+@keyframes ps-drawer-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+textarea.ps-ta {
+  width: 100%;
+  min-height: 74px;
+  resize: vertical;
+  padding: 9px 12px;
+  background: var(--white);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  color: var(--text-heading);
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+textarea.ps-ta:focus { border-color: var(--border-focus); box-shadow: var(--ring); }
+
+/* drawer goes full-screen on phones */
+@container shell (max-width: 759px) {
+  .ps-drawer-panel { max-width: 100% !important; }
+}
+
+/* ---------- rent: rooms list row ---------- */
+.rt-room-row { display: flex; align-items: center; gap: 14px; padding: 14px var(--card-pad); }
+.rt-id { flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; }
+.rt-unit { width: 70px; flex: none; font-size: var(--text-base); font-weight: 700; color: var(--text-heading); }
+.rt-tenant { flex: 1; min-width: 0; font-size: var(--text-base); color: var(--text-body);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rt-rent { width: 80px; flex: none; text-align: right; font-size: var(--text-sm); color: var(--text-muted); }
+.rt-status { width: 86px; flex: none; display: flex; justify-content: flex-end; }
+.rt-actions { display: flex; gap: 4px; }
+
+/* phone: stack renter under room name, hide base rent + add-rent icon */
+@container shell (max-width: 759px) {
+  .rt-id { flex-direction: column; align-items: flex-start; gap: 0; }
+  .rt-unit { width: auto; }
+  .rt-tenant { flex: none; width: 100%; font-size: var(--text-sm); color: var(--text-muted); margin-top: 2px; }
+  .rt-rent { display: none; }
+  .rt-add { display: none; }
+}

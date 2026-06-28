@@ -17,13 +17,20 @@
   }
 
   function TaskEditor({ task, defaultProp, onClose, onSave, onDelete, Segmented }) {
+    const MS_DAY = 86400000;
     const today = new Date().toISOString().slice(0, 10);
-    const [f, setF] = useState(() => task ? { startDate: today, ...task } : {
-      name: '', icon: 'wrench', tint: TINTS[0].value, durationMin: 30,
-      bucket: 'quick', recurrence: 'Monthly', property: defaultProp, dueInDays: 14, startDate: today,
-    });
+    const midnight = (s) => new Date(s + 'T00:00:00').getTime();
+    const dateFromDays = (d) => new Date(midnight(today) + (d || 0) * MS_DAY).toISOString().slice(0, 10);
+    const daysFromDate = (s) => Math.round((midnight(s) - midnight(today)) / MS_DAY);
+    const [f, setF] = useState(() => task
+      ? { ...task, startDate: task.startDate || dateFromDays(task.dueInDays) }
+      : {
+        name: '', icon: 'wrench', tint: TINTS[0].value, durationMin: 30,
+        bucket: 'quick', recurrence: 'Monthly', property: defaultProp, dueInDays: 14, startDate: dateFromDays(14),
+      });
     const set = (k, v) => setF(s => ({ ...s, [k]: v }));
-    const save = () => { if (!f.name.trim()) return; onSave({ ...f, id: task ? task.id : undefined }); };
+    // Start date is the source of truth — keep dueInDays (which drives the schedule) in sync on save.
+    const save = () => { if (!f.name.trim()) return; onSave({ ...f, dueInDays: daysFromDate(f.startDate), id: task ? task.id : undefined }); };
 
     return (
       <Modal open onClose={onClose} title={task ? 'Edit task' : 'New task'}
@@ -105,8 +112,10 @@
   }
 
   function RecurrenceEditor({ task, onClose, onSave, Segmented }) {
+    const today = new Date().toISOString().slice(0, 10);
+    const dateFromDays = (d) => new Date(new Date(today + 'T00:00:00').getTime() + (d || 0) * 86400000).toISOString().slice(0, 10);
     const [rec, setRec] = useState(task.recurrence);
-    const [startDate, setStartDate] = useState(task.startDate || '');
+    const [startDate, setStartDate] = useState(task.startDate || dateFromDays(task.dueInDays));
     const [property, setProperty] = useState(task.property);
     return (
       <Modal open onClose={onClose} title="Recurrence" subtitle={task.name} width={420}

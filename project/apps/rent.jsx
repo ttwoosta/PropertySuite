@@ -22,7 +22,8 @@ function RentApp() {
   const [periodOpen, setPeriodOpen] = useS(false);
 
   // lifted domain state
-  const [houses, setHouses] = useS(() => RR.HOUSES.map((h) => ({ ...h, rooms: h.rooms.map((r) => ({ ...r })) })));
+  const [houses, setHouses] = useS([]);
+  const [, setTick] = useS(0);   // bump to re-render when store-derived RR.* arrays change
   const [receipts, setReceipts] = useS(() => RR.RECEIPTS.map((r) => ({ ...r, kind: RKIND[r.id] || 'img' })));
   const [links, setLinks] = useS({ 'gas-5': 'r1', 'water-5': 'r2', 'maint-4': 'r3' });
   const [vals, setVals] = useS({});
@@ -38,12 +39,20 @@ function RentApp() {
   const toast = useToast();
 
   useE(() => {
-    const t = setTimeout(() => {
-      const u = window.PS.Auth.get();
-      if (!u) {window.location.href = 'Property Suite.html';return;}
-      setUser(u);setAuth('in');
-    }, 360);
-    return () => clearTimeout(t);
+    let unsub = null, alive = true;
+    const seed = () => setHouses(RR.HOUSES.map((h) => ({ ...h, rooms: h.rooms.map((r) => ({ ...r })) })));
+    (async () => {
+      const u = await window.PS.Auth.ready();
+      if (!alive) return;
+      if (!u) { window.location.href = 'Property Suite.html'; return; }
+      await window.PS_STORE.ready();
+      if (!alive) return;
+      window.RENT.fromStore();
+      seed();
+      setUser(u); setAuth('in');
+      unsub = window.PS_STORE.subscribe(() => { window.RENT.fromStore(); seed(); setTick((n) => n + 1); });
+    })();
+    return () => { alive = false; if (unsub) unsub(); };
   }, []);
   useE(() => {window.PS.icons();});
   // auto-open Add House when the portfolio is empty
@@ -68,6 +77,22 @@ function RentApp() {
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '6px 12px' }}>
         {NAV.map((n) => <RentNav key={n.id} n={n} active={view === n.id} onClick={setView} />)}
+      </div>
+      <div style={{ padding: '6px 12px 4px', borderTop: '1px solid var(--border-subtle)' }}>
+        <div className="eyebrow" style={{ padding: '10px 8px 8px' }}>Suite</div>
+        {[
+        { label: 'Houses', icon: 'building-2', href: 'Houses.html' },
+        { label: 'Maintenance Scheduler', icon: 'calendar-check-2', href: 'Maintenance Scheduler.html' },
+        { label: 'Tenant Bridge', icon: 'messages-square', href: 'Tenant Bridge.html' },
+        ].map((l) =>
+        <a key={l.href} href={l.href} className="ms-app-link" style={{ display: 'flex', alignItems: 'center', gap: 11,
+          padding: '9px 12px', borderRadius: 'var(--radius-md)', textDecoration: 'none', color: 'var(--text-body)',
+          fontSize: 'var(--text-base)', fontWeight: 500 }}>
+          <Icon name={l.icon} size={18} style={{ color: 'var(--text-muted)' }} />
+          <span style={{ flex: 1 }}>{l.label}</span>
+          <Icon name="arrow-up-right" size={14} style={{ color: 'var(--text-faint)' }} />
+        </a>
+        )}
       </div>
       <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 600 }}>{houses.length} houses · {roomCount} rooms</span>

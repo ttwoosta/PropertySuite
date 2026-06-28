@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Property Suite — Devices</title>
+<link rel="stylesheet" href="_ds/maintenance-scheduler-design-system-02479c68-25b4-4a9d-a0b0-b79eabfdc160/tokens/fonts.css">
+<link rel="stylesheet" href="_ds/maintenance-scheduler-design-system-02479c68-25b4-4a9d-a0b0-b79eabfdc160/tokens/colors.css">
+<link rel="stylesheet" href="_ds/maintenance-scheduler-design-system-02479c68-25b4-4a9d-a0b0-b79eabfdc160/tokens/typography.css">
+<link rel="stylesheet" href="_ds/maintenance-scheduler-design-system-02479c68-25b4-4a9d-a0b0-b79eabfdc160/tokens/spacing.css">
+<link rel="stylesheet" href="_ds/maintenance-scheduler-design-system-02479c68-25b4-4a9d-a0b0-b79eabfdc160/tokens/radius.css">
+<link rel="stylesheet" href="_ds/maintenance-scheduler-design-system-02479c68-25b4-4a9d-a0b0-b79eabfdc160/styles.css">
+<link rel="stylesheet" href="lib/ps-app.css">
+<style>
+  html, body { margin: 0; background: var(--surface-page); color: var(--text-body); }
+  .dev-top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px; border-bottom: 1px solid var(--border-default);
+    background: color-mix(in srgb, var(--surface-card) 82%, transparent);
+    backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10;
+  }
+  .dev-brand { display: flex; align-items: center; gap: 11px; text-decoration: none; }
+  .dev-brand span { font-size: var(--text-lg); font-weight: 700; letter-spacing: -0.02em; color: var(--text-heading); }
+  .dev-back {
+    display: inline-flex; align-items: center; gap: 7px; text-decoration: none;
+    font-size: var(--text-sm); font-weight: 600; color: var(--text-body);
+    padding: 8px 14px; border: 1px solid var(--border-default); border-radius: var(--radius-md);
+    background: var(--surface-card); transition: border-color var(--dur-base) var(--ease-out), background var(--dur-base) var(--ease-out);
+  }
+  .dev-back:hover { border-color: var(--border-strong); background: var(--surface-hover); }
+  .dev-back i, .dev-back svg { width: 16px; height: 16px; flex: none; }
+
+  .dev-body { max-width: 1120px; margin: 0 auto; padding: 56px 28px 96px; }
+  .dev-intro { max-width: 600px; }
+  .dev-intro h1 {
+    margin: 6px 0 12px; font-size: var(--text-4xl); font-weight: 700;
+    letter-spacing: -0.025em; color: var(--text-heading); line-height: 1.08;
+  }
+  .dev-intro p { margin: 0; font-size: var(--text-lg); color: var(--text-muted); line-height: 1.5; text-wrap: pretty; }
+
+  .dev-stage {
+    display: flex; align-items: flex-end; justify-content: center; flex-wrap: wrap;
+    gap: 40px; margin-top: 56px;
+  }
+  @media (max-width: 720px) { .dev-body { padding: 36px 18px 72px; } .dev-stage { gap: 28px; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.456.0/dist/umd/lucide.min.js"></script>
+<script src="_ds/maintenance-scheduler-design-system-02479c68-25b4-4a9d-a0b0-b79eabfdc160/_ds_bundle.js"></script>
+<script type="text/babel" src="frames/ios-frame.jsx"></script>
+<script type="text/babel" src="apps/devices.jsx"></script>
+</body>
+</html>

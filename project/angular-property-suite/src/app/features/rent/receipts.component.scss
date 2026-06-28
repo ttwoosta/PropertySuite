@@ -1,0 +1,79 @@
+.rcpt__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.rcpt__head-main {
+  flex: 1;
+}
+
+.rcpt__title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  color: var(--text-heading);
+}
+
+.rcpt__sub {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.rcpt__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.rcpt__card {
+  overflow: hidden;
+}
+
+.rcpt__thumb {
+  position: relative;
+  height: 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.rcpt__kind {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.rcpt__cat {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.rcpt__body {
+  padding: 11px 13px;
+}
+
+.rcpt__merchant {
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  color: var(--text-heading);
+}
+
+.rcpt__meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3px;
+}
+
+.rcpt__date {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.rcpt__amount {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--text-heading);
+}

@@ -1,0 +1,92 @@
+<ps-right-drawer
+  [open]="rent.uploadOpen()"
+  icon="receipt"
+  title="Upload receipt"
+  subtitle="Add to your receipt library"
+  (closed)="rent.uploadOpen.set(false)"
+>
+  <div class="body">
+    <div>
+      <label class="lbl">Receipt file</label>
+      <input
+        #fileInput
+        type="file"
+        accept="image/png,image/jpeg,application/pdf"
+        hidden
+        (change)="onFileInput($event)"
+      />
+
+      @if (!file()) {
+        <div
+          class="drop"
+          [class.drop--active]="drag()"
+          (click)="browse()"
+          (dragover)="onDragOver($event)"
+          (dragleave)="drag.set(false)"
+          (drop)="onDrop($event)"
+        >
+          <span class="drop__icon"><ps-icon name="receipt" [size]="30"></ps-icon></span>
+          <div class="drop__text">Drop image here or <span class="drop__browse">browse</span></div>
+          <div class="drop__hint">PNG, JPG or PDF · up to 10 MB</div>
+        </div>
+      } @else {
+        <div class="file">
+          @if (file()!.kind === 'img' && file()!.url) {
+            <img class="file__thumb" [src]="file()!.url" alt="" />
+          } @else {
+            <span class="file__thumb file__thumb--icon"><ps-icon name="file-text" [size]="20"></ps-icon></span>
+          }
+          <div class="file__meta">
+            <div class="file__name">{{ file()!.name }}</div>
+            <div class="file__size">{{ fileSize(file()!.size) }}</div>
+          </div>
+          <ps-icon-button label="Remove file" variant="ghost" size="sm" (clicked)="file.set(null)">
+            <ps-icon name="x" [size]="16"></ps-icon>
+          </ps-icon-button>
+        </div>
+      }
+    </div>
+
+    <ps-input
+      label="Merchant"
+      [labelTag]="{ tone: 'req', label: 'required' }"
+      [value]="merchant()"
+      [error]="merchErr()"
+      placeholder="e.g. British Gas"
+      leadingIcon="store"
+      (valueChange)="merchant.set($event)"
+    ></ps-input>
+
+    <ps-field-row>
+      <ps-select label="Category" [value]="cat()" [options]="catOptions" (valueChange)="cat.set($event)"></ps-select>
+      <ps-select label="House" [value]="houseId()" [options]="houseOptions()" (valueChange)="houseId.set($event)"></ps-select>
+    </ps-field-row>
+
+    <ps-field-row>
+      <ps-input label="Issue date" type="date" [value]="date()" (valueChange)="date.set($event)"></ps-input>
+      <ps-amount-field
+        label="Total amount"
+        [labelTag]="{ tone: 'opt', label: 'optional' }"
+        [value]="total()"
+        (valueChange)="total.set($event)"
+      ></ps-amount-field>
+    </ps-field-row>
+
+    <ps-textarea label="Notes" [labelTag]="{ tone: 'opt', label: 'optional' }" [value]="notes()" (valueChange)="notes.set($event)"></ps-textarea>
+  </div>
+
+  <ng-container drawer-footer>
+    @if (err() && !saver.busy()) {
+      <span class="foot-err">{{ err() }}</span>
+    }
+    <ps-button variant="ghost" (clicked)="rent.uploadOpen.set(false)">Cancel</ps-button>
+    <ps-save-cta
+      [busy]="saver.busy()"
+      busyLabel="Uploading…"
+      icon="download"
+      label="Upload receipt"
+      [disabled]="!file()"
+      (clicked)="submit()"
+    ></ps-save-cta>
+  </ng-container>
+</ps-right-drawer>
