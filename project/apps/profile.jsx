@@ -101,18 +101,19 @@ function ProfileRoot() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const t = setTimeout(() => {
-      const u = window.PS.Auth.get();
+    let alive = true;
+    window.PS.Auth.ready().then((u) => {
+      if (!alive) return;
       if (!u) { window.location.href = 'Property Suite.html'; return; }
       setUser(u); setState('in');
-    }, 320);
-    return () => clearTimeout(t);
+    });
+    return () => { alive = false; };
   }, []);
 
   useEffect(() => { window.PS.icons(); });
 
   if (state === 'resolving') return <Spinner label="Loading your profile…" />;
-  return <Profile user={user} onSignOut={() => { window.PS.Auth.signOut(); window.location.href = 'Property Suite.html'; }} />;
+  return <Profile user={user} onSignOut={() => { window.PS.Auth.signOut().finally(() => { window.location.href = 'Property Suite.html'; }); }} />;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<ProfileRoot />);

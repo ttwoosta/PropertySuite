@@ -1,10 +1,14 @@
 /* Maintenance Scheduler — mock data + helpers (plain JS). */
 (function () {
-  const PROPERTIES = [
-    { id: 'elm',  name: '14 Elm Road',       short: 'Elm Road',   color: 'var(--green-500)' },
-    { id: 'birch', name: '8 Birch Lane',      short: 'Birch Lane', color: 'var(--amber-400)' },
-    { id: 'park', name: 'Flat 2, Park View',  short: 'Park View',  color: 'var(--blue-400)' },
-  ];
+  // Properties come from the central store (apps/store.js, Firestore-backed +
+  // async) so Maintenance schedules against the same houses as the rest of the
+  // suite. Filled by fromStore() AFTER PS_STORE.ready(), mutated in place.
+  const PROPERTIES = [];
+  function fromStore() {
+    const store = window.PS_STORE.getHouses();
+    PROPERTIES.length = 0;
+    store.forEach((h) => PROPERTIES.push({ id: h.id, name: h.name, short: h.short, color: h.color }));
+  }
 
   // icon + tint palette offered in the editor
   const ICONS = ['flame', 'bell-ring', 'shield-check', 'zap', 'droplets', 'wind',
@@ -20,13 +24,13 @@
   const prep = (...labels) => labels.map((l, i) => ({ id: i, label: l, done: false }));
 
   const TASKS = [
-    { id: 't1', name: 'Boiler service', icon: 'flame', tint: 'var(--amber-400)', property: 'elm',
+    { id: 't1', name: 'Boiler service', icon: 'flame', tint: 'var(--amber-400)', property: 'maple',
       dueInDays: 2, recurrence: 'Monthly', durationMin: 45, bucket: 'long', done: false,
       prep: prep('Service kit & spares', 'Carbon-monoxide tester', 'Notify tenant of visit') },
-    { id: 't2', name: 'Smoke alarm test', icon: 'bell-ring', tint: 'var(--red-500)', property: 'elm',
+    { id: 't2', name: 'Smoke alarm test', icon: 'bell-ring', tint: 'var(--red-500)', property: 'maple',
       dueInDays: -12, recurrence: 'Quarterly', durationMin: 15, bucket: 'quick', done: false,
       prep: prep('Spare 9V batteries', 'Test card / log sheet') },
-    { id: 't3', name: 'Gutter clearing', icon: 'droplets', tint: 'var(--blue-400)', property: 'elm',
+    { id: 't3', name: 'Gutter clearing', icon: 'droplets', tint: 'var(--blue-400)', property: 'maple',
       dueInDays: 21, recurrence: 'Quarterly', durationMin: 60, bucket: 'long', done: false,
       prep: prep('Ladder & stabiliser', 'Gloves & scoop', 'Garden waste sack') },
     { id: 't4', name: 'Gas safety check', icon: 'shield-check', tint: 'var(--green-500)', property: 'birch',
@@ -38,10 +42,10 @@
     { id: 't6', name: 'Bleed radiators', icon: 'thermometer', tint: 'var(--amber-400)', property: 'birch',
       dueInDays: 30, recurrence: 'Quarterly', durationMin: 25, bucket: 'quick', done: false,
       prep: prep('Radiator key', 'Towel & catch tray') },
-    { id: 't7', name: 'EICR inspection', icon: 'zap', tint: 'var(--amber-400)', property: 'park',
+    { id: 't7', name: 'EICR inspection', icon: 'zap', tint: 'var(--amber-400)', property: 'oak',
       dueInDays: 6, recurrence: 'Quarterly', durationMin: 90, bucket: 'long', done: false,
       prep: prep('Multifunction tester', 'EICR schedule forms', 'Notify tenant — power off') },
-    { id: 't8', name: 'Emergency lighting test', icon: 'lightbulb', tint: 'var(--green-500)', property: 'park',
+    { id: 't8', name: 'Emergency lighting test', icon: 'lightbulb', tint: 'var(--green-500)', property: 'oak',
       dueInDays: 14, recurrence: 'Monthly', durationMin: 20, bucket: 'quick', done: false,
       prep: prep('Test key / switch', 'Log book') },
   ];
@@ -60,11 +64,11 @@
 
   // ---- completed-task history (log of past maintenance) ----
   const HISTORY = [
-    { id: 'h1', name: 'Boiler service', icon: 'flame', tint: 'var(--amber-400)', property: 'elm',
+    { id: 'h1', name: 'Boiler service', icon: 'flame', tint: 'var(--amber-400)', property: 'maple',
       recurrence: 'Monthly', durationMin: 45, daysAgo: 28, by: 'Gas-Safe engineer' },
-    { id: 'h2', name: 'Smoke alarm test', icon: 'bell-ring', tint: 'var(--red-500)', property: 'elm',
+    { id: 'h2', name: 'Smoke alarm test', icon: 'bell-ring', tint: 'var(--red-500)', property: 'maple',
       recurrence: 'Quarterly', durationMin: 15, daysAgo: 104, by: 'You' },
-    { id: 'h3', name: 'Gutter clearing', icon: 'droplets', tint: 'var(--blue-400)', property: 'elm',
+    { id: 'h3', name: 'Gutter clearing', icon: 'droplets', tint: 'var(--blue-400)', property: 'maple',
       recurrence: 'Quarterly', durationMin: 60, daysAgo: 71, by: 'Contractor' },
     { id: 'h4', name: 'Gas safety check', icon: 'shield-check', tint: 'var(--green-500)', property: 'birch',
       recurrence: 'Monthly', durationMin: 40, daysAgo: 26, by: 'Gas-Safe engineer' },
@@ -72,11 +76,11 @@
       recurrence: 'Monthly', durationMin: 10, daysAgo: 33, by: 'You' },
     { id: 'h6', name: 'Bleed radiators', icon: 'thermometer', tint: 'var(--amber-400)', property: 'birch',
       recurrence: 'Quarterly', durationMin: 25, daysAgo: 88, by: 'You' },
-    { id: 'h7', name: 'EICR inspection', icon: 'zap', tint: 'var(--amber-400)', property: 'park',
+    { id: 'h7', name: 'EICR inspection', icon: 'zap', tint: 'var(--amber-400)', property: 'oak',
       recurrence: 'Quarterly', durationMin: 90, daysAgo: 12, by: 'Electrician' },
-    { id: 'h8', name: 'Emergency lighting test', icon: 'lightbulb', tint: 'var(--green-500)', property: 'park',
+    { id: 'h8', name: 'Emergency lighting test', icon: 'lightbulb', tint: 'var(--green-500)', property: 'oak',
       recurrence: 'Monthly', durationMin: 20, daysAgo: 19, by: 'You' },
-    { id: 'h9', name: 'Boiler service', icon: 'flame', tint: 'var(--amber-400)', property: 'elm',
+    { id: 'h9', name: 'Boiler service', icon: 'flame', tint: 'var(--amber-400)', property: 'maple',
       recurrence: 'Monthly', durationMin: 45, daysAgo: 58, by: 'Gas-Safe engineer' },
     { id: 'h10', name: 'AC filter swap', icon: 'wind', tint: 'var(--blue-400)', property: 'birch',
       recurrence: 'Monthly', durationMin: 10, daysAgo: 64, by: 'You' },
@@ -99,5 +103,5 @@
     return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
   }
 
-  window.MAINT = { PROPERTIES, ICONS, TINTS, TASKS, HISTORY, statusOf, dueLabel, dateLabel, agoLabel, monthLabel };
+  window.MAINT = { PROPERTIES, ICONS, TINTS, TASKS, HISTORY, statusOf, dueLabel, dateLabel, agoLabel, monthLabel, fromStore };
 })();

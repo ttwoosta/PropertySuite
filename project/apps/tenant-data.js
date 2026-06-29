@@ -1,24 +1,22 @@
 /* TenantBridge — mock data (plain JS). */
 (function () {
-  const PROPS = [
-    { id: 'elm', name: '14 Elm Road', color: 'var(--green-500)' },
-    { id: 'birch', name: '8 Birch Lane', color: 'var(--amber-400)' },
-  ];
-
-  const TENANTS = [
-    { id: 'marcus', name: 'Marcus Bell', unit: 'Room 1', prop: 'elm', score: 5, lastContact: 2,
-      style: 'Direct, brief replies', payment: 'On time, monthly', preferTime: 'Evenings after 6pm' },
-    { id: 'priya', name: 'Priya Shah', unit: 'Room 2', prop: 'elm', score: 5, lastContact: 7,
-      style: 'Friendly, prefers texts', payment: 'Pays in two halves', preferTime: 'Lunch hours' },
-    { id: 'tom', name: 'Tom Reilly', unit: 'Room 3', prop: 'elm', score: 3, lastContact: 21,
-      style: 'Formal email tone', payment: 'Often 1–2 days late', preferTime: 'Weekday mornings' },
-    { id: 'dana', name: 'Dana Okafor', unit: 'Room 1', prop: 'birch', score: 5, lastContact: 4,
-      style: 'Warm, conversational', payment: 'Standing order, on time', preferTime: 'Anytime' },
-    { id: 'sam', name: 'Sam Lin', unit: 'Room 2', prop: 'birch', score: 4, lastContact: 12,
-      style: 'Short bullet points', payment: 'Reliable', preferTime: 'After 5pm' },
-    { id: 'ava', name: 'Ava Moreno', unit: 'Room 3', prop: 'birch', score: 4, lastContact: 6,
-      style: 'Likes detail and context', payment: 'Reliable', preferTime: 'Lunch' },
-  ];
+  // Properties + tenants come from the central store (apps/store.js, Firestore-
+  // backed + async); the communication threads / suggestions / queue below are
+  // TenantBridge-specific and keyed by the same tenant ids the store assigns.
+  // PROPS / TENANTS are filled by fromStore() AFTER PS_STORE.ready(), in place.
+  const PROPS = [];
+  const TENANTS = [];
+  function fromStore() {
+    const store = window.PS_STORE.getHouses();
+    PROPS.length = 0;
+    store.forEach((h) => PROPS.push({ id: h.id, name: h.name, color: h.color }));
+    TENANTS.length = 0;
+    window.PS_STORE.tenants().forEach((t) => TENANTS.push({
+      id: t.id, name: t.name, unit: t.unit, prop: t.houseId,
+      score: t.score, lastContact: t.lastContact, phone: t.phone || '', email: t.email || '',
+      style: t.style, payment: t.payment, preferTime: t.preferTime,
+    }));
+  }
 
   // initial threads per tenant
   const THREADS = {
@@ -78,7 +76,12 @@
     ],
     sam: [{ label: 'Lock change', when: '5 months ago' }],
     ava: [{ label: 'Damp survey', when: '1 month ago' }],
+    hannah: [
+      { label: 'EICR inspection', when: '2 weeks ago' },
+      { label: 'Smoke alarm test', when: '4 months ago' },
+    ],
+    leo: [{ label: 'Emergency lighting test', when: '3 weeks ago' }],
   };
 
-  window.TENANT = { PROPS, TENANTS, THREADS, SUGGESTIONS, QUEUE, HISTORY };
+  window.TENANT = { PROPS, TENANTS, THREADS, SUGGESTIONS, QUEUE, HISTORY, fromStore };
 })();

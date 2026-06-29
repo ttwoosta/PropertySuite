@@ -201,22 +201,22 @@ function Houses({ house, onAddRent, onEditRoom, onAddHouse }) {
       </div>
       <RCard padding="0" style={{ overflow: 'hidden' }}>
         {house.rooms.map((r, i) =>
-        <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px var(--card-pad)',
-          borderTop: i ? '1px solid var(--border-subtle)' : 'none' }}>
-            <div style={{ width: 70, fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-heading)' }}>{r.unit}</div>
-            <div style={{ flex: 1, minWidth: 0, fontSize: 'var(--text-base)', color: r.tenant ? 'var(--text-body)' : 'var(--text-faint)' }}>
-              {r.tenant || 'Vacant'}</div>
-            <div className="ps-mono" style={{ width: 80, textAlign: 'right', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>{gbp(r.rent)}</div>
+        <div key={r.id} className="rt-room-row" style={{ borderTop: i ? '1px solid var(--border-subtle)' : 'none' }}>
+            <div className="rt-id">
+              <div className="rt-unit">{r.unit}</div>
+              <div className="rt-tenant" style={r.tenant ? undefined : { color: 'var(--text-faint)' }}>{r.tenant || 'Vacant'}</div>
+            </div>
+            <div className="rt-rent ps-mono">{gbp(r.rent)}</div>
             <button onClick={() => onAddRent(r)} title="Record rent" className="ps-mono"
           style={{ width: 86, textAlign: 'right', fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer',
             background: 'transparent', border: 'none', padding: '4px 6px', borderRadius: 'var(--radius-sm)',
             color: r.paid ? 'var(--text-heading)' : 'var(--text-faint)' }}
           onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-hover)'}
           onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>{r.paid ? gbp(r.paid) : 'Add +'}</button>
-            <div style={{ width: 86, display: 'flex', justifyContent: 'flex-end' }}><RBadge tone={STATUS_BADGE[r.status]} size="sm">{r.status}</RBadge></div>
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div className="rt-status"><RBadge tone={STATUS_BADGE[r.status]} size="sm">{r.status}</RBadge></div>
+            <div className="rt-actions">
               <RIcon label="Edit room" variant="ghost" size="sm" onClick={() => onEditRoom(r)}>{di('pencil')}</RIcon>
-              <RIcon label="Add rent" variant="ghost" size="sm" onClick={() => onAddRent(r)}>{di('plus-circle')}</RIcon>
+              <span className="rt-add"><RIcon label="Add rent" variant="ghost" size="sm" onClick={() => onAddRent(r)}>{di('plus-circle')}</RIcon></span>
             </div>
           </div>
         )}

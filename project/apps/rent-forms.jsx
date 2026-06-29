@@ -121,7 +121,9 @@ function BtnSpin() {
 function SaveCta({ busy, busyLabel, icon, children, onClick, disabled }) {
   return (
     <FBtn variant="primary" disabled={busy || disabled} onClick={onClick}
-      leadingIcon={busy ? <BtnSpin /> : (icon ? <i data-lucide={icon}></i> : undefined)}>
+      leadingIcon={busy
+        ? <span key="spin" style={{ display: 'inline-flex' }}><BtnSpin /></span>
+        : (icon ? <span key="icon" style={{ display: 'inline-flex' }}><i data-lucide={icon}></i></span> : undefined)}>
       {busy ? busyLabel : children}
     </FBtn>
   );

@@ -21,17 +21,18 @@ function useLucide(dep) {
   useEffect(() => { window.PS.icons(); });
 }
 
-/* ---- theme (persisted per app, applied to <html>) ---- */
-function useTheme(appKey) {
-  const storeKey = 'ps_theme_' + appKey;
-  const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem(storeKey) || 'light'; } catch (e) { return 'light'; }
-  });
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    try { localStorage.setItem(storeKey, theme); } catch (e) {}
-  }, [theme]);
-  const toggle = useCallback(() => setTheme(t => (t === 'dark' ? 'light' : 'dark')), []);
+/* ---- theme ----
+   ONE shared preference for the whole suite, backed by window.PS.Theme
+   (key `ps_theme_v1`). The launcher and all four apps read/write the same
+   value, so switching mode anywhere is reflected everywhere. The legacy
+   `appKey` argument is accepted but ignored for backward compatibility. */
+function useTheme(_appKey) {
+  const [theme, setTheme] = useState(() => window.PS.Theme.get());
+  // Reflect changes made on this page or in another tab.
+  useEffect(() => window.PS.Theme.onChange(setTheme), []);
+  // Ensure <html> matches our current value on mount / after hydration.
+  useEffect(() => { window.PS.Theme.apply(theme); }, [theme]);
+  const toggle = useCallback(() => { window.PS.Theme.toggle(); }, []);
   return [theme, toggle];
 }
 
@@ -143,11 +144,11 @@ function RightDrawer({ open, onClose, title, subtitle, icon, children, footer, w
     return () => window.removeEventListener('keydown', h);
   }, [open, onClose]);
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, pointerEvents: open ? 'auto' : 'none' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, overflow: 'hidden', pointerEvents: open ? 'auto' : 'none' }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(24,28,26,0.32)',
         opacity: open ? 1 : 0, transition: 'opacity var(--dur-base) var(--ease-out)' }}></div>
       <div className="ps-drawer-panel" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: width,
-        background: 'var(--surface-card)', borderLeft: '1px solid var(--border-default)', boxShadow: 'var(--shadow-lg)',
+        background: 'var(--surface-card)', borderLeft: '1px solid var(--border-default)', boxShadow: open ? 'var(--shadow-lg)' : 'none',
         transform: open ? 'none' : 'translateX(100%)', transition: 'transform var(--dur-slow) var(--ease-out)',
         display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,

@@ -78,8 +78,8 @@ function Showcase() {
 
       <div className="dev-body">
         <div className="dev-stage ps-fade">
-          <Scaled scale={0.62} w={1128} h={856} label="iPad — Property Suite"><IPad /></Scaled>
-          <Scaled scale={0.62} w={416} h={870} label="iPhone — Property Suite"><Phone /></Scaled>
+          <Scaled scale={0.62} w={1128} h={856} label="iPad"><IPad /></Scaled>
+          <Scaled scale={0.62} w={416} h={870} label="iPhone"><Phone /></Scaled>
         </div>
       </div>
     </div>
