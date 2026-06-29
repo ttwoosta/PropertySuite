@@ -176,6 +176,22 @@ function RentInner() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '6px 12px' }}>
         {NAV.map((n) => <RentNav key={n.id} n={n} active={view === n.id} onClick={setView} />)}
       </div>
+      <div style={{ padding: '6px 12px 4px', borderTop: '1px solid var(--border-subtle)' }}>
+        <div className="eyebrow" style={{ padding: '10px 8px 8px' }}>Suite</div>
+        {[
+          { label: 'Houses', icon: 'building-2', to: '/houses' },
+          { label: 'Maintenance Scheduler', icon: 'calendar-check-2', to: '/maintenance' },
+          { label: 'Tenant Bridge', icon: 'messages-square', to: '/tenant-bridge' },
+        ].map((l) => (
+          <Link key={l.to} to={l.to} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 12px',
+            borderRadius: 'var(--radius-md)', textDecoration: 'none', color: 'var(--text-body)',
+            fontSize: 'var(--text-base)', fontWeight: 500 }}>
+            <Icon name={l.icon} size={18} style={{ color: 'var(--text-muted)' }} />
+            <span style={{ flex: 1 }}>{l.label}</span>
+            <Icon name="arrow-up-right" size={14} style={{ color: 'var(--text-faint)' }} />
+          </Link>
+        ))}
+      </div>
       <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 600 }}>
           {houses.length} houses · {roomCount} rooms

@@ -1,10 +1,9 @@
 // Maintenance Scheduler — types, seed data, pure helpers, and Firestore-backed hook.
 // All raw Firestore I/O lives in src/lib/maintenanceService.ts.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { firebaseConfigured } from '../../lib/firebase';
 import {
   subscribeTasksFS,
-  seedTasksIfEmpty,
   saveTaskFS,
   deleteTaskFS,
   updateTaskFieldsFS,
@@ -212,30 +211,16 @@ export function useTasks(uid: string | null): TaskActions {
     firebaseConfigured ? [] : seedTasksLocal(),
   );
   const [loading, setLoading] = useState(!!firebaseConfigured);
-  const seededUids = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!firebaseConfigured || !uid) return;
 
     let cancelled = false;
-    let unsub: (() => void) | undefined;
+    const unsub = subscribeTasksFS(uid, (data) => {
+      if (!cancelled) { setTasks(data); setLoading(false); }
+    });
 
-    (async () => {
-      if (!seededUids.current.has(uid)) {
-        seededUids.current.add(uid);
-        if (!cancelled) await seedTasksIfEmpty(uid, TASKS);
-      }
-      if (cancelled) return;
-      unsub = subscribeTasksFS(uid, (data) => {
-        setTasks(data);
-        setLoading(false);
-      });
-    })();
-
-    return () => {
-      cancelled = true;
-      unsub?.();
-    };
+    return () => { cancelled = true; unsub(); };
   }, [uid]);
 
   const toggleTask = (id: string) => {
@@ -296,7 +281,7 @@ export function useTasks(uid: string | null): TaskActions {
     if (!firebaseConfigured || !uid) {
       setTasks((ts) => {
         if (data.id) return ts.map((t) => (t.id === data.id ? { ...t, ...data } : t));
-        return [...ts, { ...data, id: 'n' + Date.now(), done: false, prep: [] } as Task];
+        return [...ts, { ...data, id: 'n' + Date.now(), done: false, prep: (data as Task).prep ?? [] } as Task];
       });
       return;
     }
@@ -312,8 +297,14 @@ export function useTasks(uid: string | null): TaskActions {
   };
 
   const setRecurrence = (id: string, rec: Recurrence, startDate?: string, property?: string) => {
+    const today = new Date().toISOString().slice(0, 10);
     const update: Partial<Task> = { recurrence: rec };
-    if (startDate !== undefined) update.startDate = startDate;
+    if (startDate !== undefined) {
+      update.startDate = startDate;
+      update.dueInDays = Math.round(
+        (new Date(startDate + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86_400_000,
+      );
+    }
     if (property) update.property = property;
     if (!firebaseConfigured || !uid) {
       setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, ...update } : t)));

@@ -1,11 +1,12 @@
 // Launcher (home) — landing screen after sign-in. Full cards on tablet+,
-// compact 3-col icon grid on phone. Each card navigates to a sub-app.
-import { useEffect } from 'react';
+// compact 2-col icon grid on phone. Each card navigates to a sub-app.
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Avatar } from '../ds-vendor/components';
-import { LucideIcon } from '../lib/icon';
+import { LucideIcon, di } from '../lib/icon';
 import { useAuth } from '../lib/auth';
 import { rememberApp } from '../lib/nav';
+import { ThemeToggle, useTheme } from '../components/ui';
 import '../styles/launcher.css';
 
 interface AppDef {
@@ -19,6 +20,15 @@ interface AppDef {
 }
 
 const APPS: AppDef[] = [
+  {
+    key: 'houses',
+    name: 'Houses',
+    to: '/houses',
+    icon: 'building-2',
+    tile: { bg: 'var(--brand-tint)', fg: 'var(--brand-on-tint)' },
+    tag: 'Properties & rooms',
+    desc: 'List every house, add, edit, or remove properties, and manage each room\'s tenant and base rent.',
+  },
   {
     key: 'rent',
     name: 'Rent Tracker',
@@ -50,11 +60,20 @@ const APPS: AppDef[] = [
 
 export function Launcher() {
   const { user } = useAuth();
+  const [theme, toggleTheme] = useTheme('launcher');
+  const [, forceUpdate] = useState(0);
+
   // The launcher always sits on the light canvas, even after visiting a dark app.
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'light');
   }, []);
+
+  // Re-render lucide icons after theme toggle
+  useEffect(() => { forceUpdate((n) => n + 1); }, [theme]);
+
   if (!user) return null;
+
+  const lastIdx = APPS.length - 1;
 
   return (
     <div className="launch-wrap" style={{ minHeight: '100dvh' }}>
@@ -72,23 +91,26 @@ export function Launcher() {
             Property Suite
           </span>
         </div>
-        <Link
-          to="/profile"
-          title="Profile"
-          aria-label="Profile"
-          onClick={() => rememberApp('/', 'Apps')}
-          style={{
-            display: 'flex',
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            cursor: 'pointer',
-            borderRadius: '50%',
-            textDecoration: 'none',
-          }}
-        >
-          <Avatar name={user.name} size="md" />
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+          <Link
+            to="/profile"
+            title="Profile"
+            aria-label="Profile"
+            onClick={() => rememberApp('/', 'Apps')}
+            style={{
+              display: 'flex',
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              borderRadius: '50%',
+              textDecoration: 'none',
+            }}
+          >
+            <Avatar name={user.name} size="md" />
+          </Link>
+        </div>
       </header>
 
       <div className="launch-body ps-fade">
@@ -119,7 +141,7 @@ export function Launcher() {
             <Link
               key={a.key}
               to={a.to}
-              className={'app-card' + (i === 2 ? ' span2' : '')}
+              className={'app-card' + (APPS.length % 2 === 1 && i === lastIdx ? ' span2' : '')}
             >
               <span className="tile" style={{ background: a.tile.bg, color: a.tile.fg }}>
                 <span>
@@ -167,7 +189,11 @@ export function Launcher() {
         {/* phone : icon-only grid */}
         <div className="icon-only">
           {APPS.map((a, i) => (
-            <Link key={a.key} to={a.to} className={'icon-cell' + (i === 2 ? ' span2' : '')}>
+            <Link
+              key={a.key}
+              to={a.to}
+              className={'icon-cell' + (APPS.length % 2 === 1 && i === lastIdx ? ' span2' : '')}
+            >
               <span className="tile" style={{ background: a.tile.bg, color: a.tile.fg }}>
                 <span>
                   <LucideIcon name={a.icon} />

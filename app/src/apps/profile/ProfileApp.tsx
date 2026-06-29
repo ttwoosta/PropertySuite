@@ -210,7 +210,7 @@ export function ProfileApp() {
             variant="secondary"
             fullWidth
             leadingIcon={di('log-out')}
-            onClick={() => void signOut().then(() => navigate('/'))}
+            onClick={() => void signOut().finally(() => navigate('/'))}
             style={{ marginTop: 22 }}
           >
             Sign out

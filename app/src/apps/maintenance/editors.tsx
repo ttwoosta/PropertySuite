@@ -48,7 +48,11 @@ export function TaskEditor({
   onDelete: (id: string) => void;
   _saveTask?: (data: TaskFormData) => Promise<void>;
 }) {
+  const MS_DAY = 86_400_000;
   const today = new Date().toISOString().slice(0, 10);
+  const midnight = (s: string) => new Date(s + 'T00:00:00').getTime();
+  const dateFromDays = (d: number) => new Date(midnight(today) + (d || 0) * MS_DAY).toISOString().slice(0, 10);
+  const daysFromDate = (s: string) => Math.round((midnight(s) - midnight(today)) / MS_DAY);
   const [f, setF] = useState<TaskFormData>(() =>
     task
       ? {
@@ -61,7 +65,7 @@ export function TaskEditor({
           recurrence: task.recurrence,
           property: task.property,
           dueInDays: task.dueInDays,
-          startDate: task.startDate ?? today,
+          startDate: task.startDate || dateFromDays(task.dueInDays),
         }
       : {
           name: '',
@@ -72,7 +76,7 @@ export function TaskEditor({
           recurrence: 'Monthly',
           property: defaultProp,
           dueInDays: 14,
-          startDate: today,
+          startDate: dateFromDays(14),
         },
   );
   const { busy, submit } = useTaskForm({ saveTask: _saveTask });
@@ -80,7 +84,8 @@ export function TaskEditor({
     setF((s) => ({ ...s, [k]: v }));
   const save = async () => {
     if (!f.name.trim()) return;
-    const ok = await submit({ ...f, id: task ? task.id : undefined });
+    // startDate is source of truth — sync dueInDays on save
+    const ok = await submit({ ...f, dueInDays: daysFromDate(f.startDate ?? today), id: task ? task.id : undefined });
     if (ok) onClose();
   };
 
@@ -270,8 +275,10 @@ export function RecurrenceEditor({
   onClose: () => void;
   onSave: (id: string, rec: Recurrence, startDate: string, property: string) => void;
 }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const dateFromDays = (d: number) => new Date(new Date(today + 'T00:00:00').getTime() + (d || 0) * 86_400_000).toISOString().slice(0, 10);
   const [rec, setRec] = useState<Recurrence>(task.recurrence);
-  const [startDate, setStartDate] = useState(task.startDate ?? '');
+  const [startDate, setStartDate] = useState(task.startDate || dateFromDays(task.dueInDays));
   const [property, setProperty] = useState(task.property);
   return (
     <Modal

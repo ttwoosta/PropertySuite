@@ -1,5 +1,7 @@
 // Maintenance Scheduler — shell + screens (port of maintenance.jsx).
 import { useRef, useState } from 'react';
+import { MaintenanceChat, type ChatTaskResult } from './MaintenanceChat';
+import { MaintenancePlanChat } from './MaintenancePlanChat';
 import { Link } from 'react-router-dom';
 import {
   Avatar,
@@ -53,10 +55,9 @@ interface ViewDef {
   sub: (p: Property) => string;
 }
 const VIEWS: ViewDef[] = [
-  { id: 'home', label: 'Tasks', icon: 'home', title: 'Tasks', sub: (p) => 'Maintenance due at ' + p.name },
-  { id: 'prep', label: 'Prep', icon: 'clipboard-check', title: 'Task prep', sub: () => 'Gather supplies before you start' },
   { id: 'schedule', label: 'Schedule', icon: 'calendar', title: 'Schedule', sub: () => 'Everything sorted by due date' },
-  { id: 'history', label: 'History', icon: 'history', title: 'History', sub: (p) => 'Completed maintenance at ' + p.name },
+  { id: 'prep', label: 'Prep', icon: 'clipboard-check', title: 'Task prep', sub: () => 'Gather supplies before you start' },
+  { id: 'history', label: 'History', icon: 'history', title: 'History', sub: () => 'Completed maintenance across your properties' },
   { id: 'smart', label: 'Smart Plan', icon: 'sparkles', title: 'Smart plan', sub: () => 'Batch tasks into your free time' },
 ];
 
@@ -501,158 +502,164 @@ function PrepScreen({
   onRemovePrep: (tid: string, pid: number) => void;
   onPhotoPrep: (tid: string, pid: number, photo: string) => void;
 }) {
-  const mine = tasks.filter((t) => t.property === prop.id);
-  if (!mine.length)
+  // Show prep for every task across all properties grouped by property
+  if (!tasks.length)
     return (
       <Card>
-        <EmptyState
-          icon="clipboard"
-          title="No tasks to prep"
-          body="Add a task to build its supply checklist."
-        />
+        <EmptyState icon="clipboard" title="No tasks to prep" body="Add a task to build its supply checklist." />
       </Card>
     );
+
+  const propName = (id: string) => { const p = PROPERTIES.find((x) => x.id === id); return p ? (p.short ?? p.name) : id; };
+  const propColor = (id: string) => { const p = PROPERTIES.find((x) => x.id === id); return p ? p.color : 'var(--text-faint)'; };
+  const order = [...PROPERTIES.map((p) => p.id), ...new Set(tasks.map((t) => t.property))];
+  const seen = new Set<string>();
+  const groups = order
+    .filter((id) => { if (seen.has(id)) return false; seen.add(id); return true; })
+    .map((id) => ({ id, items: tasks.filter((t) => t.property === id) }))
+    .filter((g) => g.items.length);
+
+  const TaskCard = (t: Task) => {
+    const done = t.prep.filter((p) => p.done).length;
+    return (
+      <Card key={t.id}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+          <span style={{ flex: 'none', width: 36, height: 36, borderRadius: 'var(--radius-md)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', background: `color-mix(in srgb, ${t.tint} 14%, var(--surface-card))`, color: t.tint }}>
+            <span style={{ display: 'inline-flex', width: 18, height: 18 }}>{di(t.icon)}</span>
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-heading)' }}>{t.name}</div>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{done}/{t.prep.length} ready</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+          {t.prep.map((item) => (
+            <PrepItem key={item.id} tid={t.id} item={item} onToggle={onTogglePrep}
+              onUpdate={onUpdatePrep} onRemove={onRemovePrep} onPhoto={onPhotoPrep} />
+          ))}
+          <AddPrepRow tid={t.id} onAdd={onAddPrep} />
+        </div>
+      </Card>
+    );
+  };
+
   return (
-    <div
-      className="ps-fade"
-      style={{
-        display: 'grid',
-        gap: 16,
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-      }}
-    >
-      {mine.map((t) => {
-        const done = t.prep.filter((p) => p.done).length;
-        return (
-          <Card key={t.id}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-              <span
-                style={{
-                  flex: 'none',
-                  width: 36,
-                  height: 36,
-                  borderRadius: 'var(--radius-md)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: `color-mix(in srgb, ${t.tint} 14%, var(--surface-card))`,
-                  color: t.tint,
-                }}
-              >
-                <span style={{ display: 'inline-flex', width: 18, height: 18 }}>{di(t.icon)}</span>
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 'var(--text-md)',
-                    fontWeight: 700,
-                    color: 'var(--text-heading)',
-                  }}
-                >
-                  {t.name}
-                </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                  {done}/{t.prep.length} ready
-                </div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-              {t.prep.map((item) => (
-                <PrepItem
-                  key={item.id}
-                  tid={t.id}
-                  item={item}
-                  onToggle={onTogglePrep}
-                  onUpdate={onUpdatePrep}
-                  onRemove={onRemovePrep}
-                  onPhoto={onPhotoPrep}
-                />
-              ))}
-              <AddPrepRow tid={t.id} onAdd={onAddPrep} />
-            </div>
-          </Card>
-        );
-      })}
+    <div className="ps-fade">
+      {groups.map((g) => (
+        <section key={g.id} style={{ marginBottom: 26 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <span style={{ width: 9, height: 9, borderRadius: '50%', flex: 'none', background: propColor(g.id) }} />
+            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-heading)' }}>{propName(g.id)}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+              {g.items.length} {g.items.length === 1 ? 'task' : 'tasks'}
+            </span>
+          </div>
+          <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+            {g.items.map(TaskCard)}
+          </div>
+        </section>
+      ))}
     </div>
+  );
+}
+
+/* ---------- Chat / Plan entry cards ---------- */
+function ChatAddCard({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 13, width: '100%',
+      textAlign: 'left', marginBottom: 20, padding: '16px var(--card-pad)', cursor: 'pointer',
+      background: 'var(--surface-card)', border: '1px dashed var(--border-strong)',
+      borderRadius: 'var(--radius-lg)', fontFamily: 'inherit' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40,
+        flex: 'none', borderRadius: 'var(--radius-md)', background: 'var(--brand-tint)', color: 'var(--brand)' }}>
+        <span style={{ display: 'inline-flex', width: 20, height: 20 }}>{di('sparkles')}</span>
+      </span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'block', fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-heading)' }}>Add a schedule with chat</span>
+        <span style={{ display: 'block', fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginTop: 2 }}>Answer three quick questions and we'll set it up for you.</span>
+      </span>
+      <span style={{ display: 'inline-flex', width: 18, height: 18, flex: 'none', color: 'var(--text-faint)' }}>{di('arrow-right')}</span>
+    </button>
+  );
+}
+
+function PlanAddCard({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 13, width: '100%',
+      textAlign: 'left', marginBottom: 20, padding: '16px var(--card-pad)', cursor: 'pointer',
+      background: 'var(--surface-card)', border: '1px dashed var(--border-strong)',
+      borderRadius: 'var(--radius-lg)', fontFamily: 'inherit' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40,
+        flex: 'none', borderRadius: 'var(--radius-md)', background: 'var(--brand-tint)', color: 'var(--brand)' }}>
+        <span style={{ display: 'inline-flex', width: 20, height: 20 }}>{di('wand-sparkles')}</span>
+      </span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'block', fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-heading)' }}>Suggest a plan for this property</span>
+        <span style={{ display: 'block', fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginTop: 2 }}>Tell us the type & location — we'll fill the schedule with upkeep tasks.</span>
+      </span>
+      <span style={{ display: 'inline-flex', width: 18, height: 18, flex: 'none', color: 'var(--text-faint)' }}>{di('arrow-right')}</span>
+    </button>
   );
 }
 
 /* ---------- Schedule ---------- */
 function ScheduleScreen({
   tasks,
-  prop,
   onToggle,
   onRecur,
+  onAdd,
+  onChatAdd,
+  onPlanAdd,
+  onTogglePrep,
 }: {
   tasks: Task[];
-  prop: Property;
   onToggle: (id: string) => void;
   onRecur: (t: Task) => void;
+  onAdd: () => void;
+  onChatAdd: () => void;
+  onPlanAdd: () => void;
+  onTogglePrep: (tid: string, pid: number) => void;
 }) {
-  const mine = tasks.filter((t) => t.property === prop.id);
-  const overdue = mine
-    .filter((t) => statusOf(t) === 'overdue')
-    .sort((a, b) => a.dueInDays - b.dueInDays);
-  const upcoming = mine
-    .filter((t) => statusOf(t) !== 'overdue' && !t.done)
-    .sort((a, b) => a.dueInDays - b.dueInDays);
+  const mine = tasks;
+  const houseName = (id: string) => {
+    const p = PROPERTIES.find((x) => x.id === id);
+    if (p?.name) return p.name;
+    return id ? id.charAt(0).toUpperCase() + id.slice(1) : '';
+  };
+  const overdue = mine.filter((t) => statusOf(t) === 'overdue').sort((a, b) => a.dueInDays - b.dueInDays);
+  const thisWeek = mine.filter((t) => statusOf(t) === 'soon').sort((a, b) => a.dueInDays - b.dueInDays);
+  const upcoming = mine.filter((t) => statusOf(t) === 'upcoming' && !t.done).sort((a, b) => a.dueInDays - b.dueInDays);
+  const visible = [...overdue, ...thisWeek];
+  const photos = visible.flatMap((t) =>
+    t.prep.filter((p) => p.photo).map((p) => ({ id: t.id + '-' + p.id, photo: p.photo!, label: p.label }))
+  );
+  const [prepOpen, setPrepOpen] = useState(false);
 
   const Row = (t: Task) => {
     const st = statusOf(t);
     return (
-      <div
-        key={t.id}
-        onClick={() => onRecur(t)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 13,
-          padding: '12px 16px',
-          background: 'var(--surface-card)',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-md)',
-          cursor: 'pointer',
-          boxShadow: 'var(--shadow-xs)',
-        }}
-      >
-        <span
-          style={{
-            flex: 'none',
-            width: 34,
-            height: 34,
-            borderRadius: 'var(--radius-sm)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: `color-mix(in srgb, ${t.tint} 14%, var(--surface-card))`,
-            color: t.tint,
-          }}
-        >
+      <div key={t.id} onClick={() => onRecur(t)} style={{ position: 'relative', display: 'flex', alignItems: 'center',
+        gap: 13, padding: '12px 16px', background: 'var(--surface-card)', border: '1px solid var(--border-default)',
+        borderRadius: 'var(--radius-md)', cursor: 'pointer', boxShadow: 'var(--shadow-xs)', overflow: 'hidden' }}>
+        <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3,
+          background: st === 'overdue' ? 'var(--danger-solid)' : st === 'soon' ? 'var(--warn-solid)' : st === 'done' ? 'var(--success-solid)' : 'var(--gray-300)' }} />
+        <span style={{ flex: 'none', width: 34, height: 34, borderRadius: 'var(--radius-sm)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', background: `color-mix(in srgb, ${t.tint} 14%, var(--surface-card))`, color: t.tint }}>
           <span style={{ display: 'inline-flex', width: 18, height: 18 }}>{di(t.icon)}</span>
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              fontSize: 'var(--text-base)',
-              fontWeight: 600,
-              color: 'var(--text-heading)',
-            }}
-          >
-            {t.name}
-          </div>
+          <div style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-heading)' }}>{t.name}</div>
+          {houseName(t.property) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+              <span style={{ display: 'inline-flex', width: 12, height: 12 }}>{di('home')}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{houseName(t.property)}</span>
+            </div>
+          )}
         </div>
-        <Badge tone="brand" size="sm">
-          {t.recurrence}
-        </Badge>
-        <Badge tone={STATUS_TONE[st]} dot={st === 'overdue' || st === 'soon'}>
-          {dueLabel(t.dueInDays)}
-        </Badge>
-        <span
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggle(t.id);
-          }}
-        >
+        <Badge tone="brand" size="sm">{t.recurrence}</Badge>
+        <Badge tone={STATUS_TONE[st]} dot={st === 'overdue' || st === 'soon'}>{dueLabel(t.dueInDays)}</Badge>
+        <span onClick={(e) => { e.stopPropagation(); onToggle(t.id); }}>
           <Checkbox checked={t.done} onChange={() => {}} />
         </span>
       </div>
@@ -661,40 +668,98 @@ function ScheduleScreen({
 
   return (
     <div className="ps-fade">
+      <ChatAddCard onClick={onChatAdd} />
+      <PlanAddCard onClick={onPlanAdd} />
+      {overdue.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '13px 16px', marginBottom: 18,
+          background: 'var(--danger-bg)', border: '1px solid color-mix(in srgb, var(--danger-solid) 30%, transparent)',
+          borderRadius: 'var(--radius-md)', color: 'var(--danger-fg)' }}>
+          <Icon name="alert-triangle" size={18} />
+          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+            {overdue.length} overdue {overdue.length === 1 ? 'task needs' : 'tasks need'} attention. Safety checks should be actioned first.
+          </span>
+        </div>
+      )}
       {overdue.length > 0 && (
         <section style={{ marginBottom: 26 }}>
-          <SectionTitle tone="danger" count={overdue.length}>
-            Overdue
-          </SectionTitle>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-            {overdue.map(Row)}
-          </div>
+          <SectionTitle tone="danger" count={overdue.length}>Overdue</SectionTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>{overdue.map(Row)}</div>
         </section>
+      )}
+      {thisWeek.length > 0 && (
+        <section style={{ marginBottom: 26 }}>
+          <SectionTitle count={thisWeek.length}>This week</SectionTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>{thisWeek.map(Row)}</div>
+        </section>
+      )}
+      {visible.length > 0 && (
+        <Card padding="0" style={{ overflow: 'hidden', marginBottom: 22 }}>
+          <button onClick={() => setPrepOpen((o) => !o)} style={{ width: '100%', display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between', gap: 12, padding: '15px var(--card-pad)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Icon name="package-check" size={18} style={{ color: 'var(--brand)' }} />
+              <span style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-heading)' }}>Get ready</span>
+              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>Prep supplies for this week</span>
+            </span>
+            <span style={{ display: 'inline-flex', width: 18, height: 18, color: 'var(--text-muted)',
+              transform: prepOpen ? 'rotate(180deg)' : 'none', transition: 'transform var(--dur-base) var(--ease-out)' }}>
+              {di('chevron-down')}
+            </span>
+          </button>
+          {prepOpen && (
+            <div style={{ borderTop: '1px solid var(--border-subtle)', padding: 'var(--card-pad)', display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {visible.map((t) => (
+                <div key={t.id}>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-heading)', marginBottom: 9 }}>{t.name}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                    {t.prep.map((item) => (
+                      <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                        <span onClick={() => onTogglePrep(t.id, item.id)} style={{ cursor: 'pointer', flex: 1 }}>
+                          <Checkbox checked={item.done} onChange={() => {}} label={item.label} />
+                        </span>
+                        <IconButton label="Add photo" variant="ghost" size="sm">{di('camera')}</IconButton>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {photos.length > 0 && (
+                <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 11 }}>
+                    <Icon name="image" size={16} style={{ color: 'var(--text-muted)' }} />
+                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-heading)' }}>Photos</span>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    {photos.map((p) => (
+                      <img key={p.id} src={p.photo} alt={p.label} title={p.label}
+                        style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
       )}
       <section>
         <SectionTitle count={upcoming.length}>Upcoming</SectionTitle>
         {upcoming.length ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-            {upcoming.map(Row)}
-          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>{upcoming.map(Row)}</div>
         ) : (
-          <Card>
-            <EmptyState
-              icon="calendar-check"
-              title="Nothing upcoming"
-              body="All scheduled tasks are done for now."
-            />
-          </Card>
+          <Card><EmptyState icon="calendar-check" title="Nothing upcoming" body="All scheduled tasks are done for now." /></Card>
         )}
       </section>
+      <Button variant="secondary" fullWidth leadingIcon={di('plus')} onClick={onAdd} style={{ marginTop: 22 }}>Add schedule</Button>
     </div>
   );
 }
 
 /* ---------- History ---------- */
-function HistoryScreen({ tasks, prop }: { tasks: Task[]; prop: Property }) {
+function HistoryScreen({ tasks }: { tasks: Task[] }) {
+  const propName = (id: string) => { const p = PROPERTIES.find((x) => x.id === id); return p ? (p.short ?? p.name) : id; };
+  const propColor = (id: string) => { const p = PROPERTIES.find((x) => x.id === id); return p ? p.color : 'var(--text-faint)'; };
   const sessionDone: HistoryEntry[] = tasks
-    .filter((t) => t.property === prop.id && t.done)
+    .filter((t) => t.done)
     .map((t) => ({
       id: 'live-' + t.id,
       name: t.name,
@@ -707,8 +772,7 @@ function HistoryScreen({ tasks, prop }: { tasks: Task[]; prop: Property }) {
       by: 'You',
       live: true,
     }));
-  const seeded = HISTORY.filter((h) => h.property === prop.id);
-  const entries = [...sessionDone, ...seeded].sort((a, b) => a.daysAgo - b.daysAgo);
+  const entries = [...sessionDone, ...HISTORY].sort((a, b) => a.daysAgo - b.daysAgo);
 
   if (!entries.length)
     return (
@@ -716,7 +780,7 @@ function HistoryScreen({ tasks, prop }: { tasks: Task[]; prop: Property }) {
         <EmptyState
           icon="history"
           title="No history yet"
-          body={'Completed tasks at ' + prop.name + ' will be logged here as you tick them off.'}
+          body="Completed tasks across your properties will be logged here as you tick them off."
         />
       </Card>
     );
@@ -777,6 +841,10 @@ function HistoryScreen({ tasks, prop }: { tasks: Task[]; prop: Property }) {
                     {e.name}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', flex: 'none', background: propColor(e.property) }} />
+                      {propName(e.property)}
+                    </span>
                     <Badge tone="neutral" size="sm">{e.recurrence}</Badge>
                     <span className="ps-mono" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{e.durationMin} min</span>
                     <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>· {e.by}</span>
@@ -873,10 +941,12 @@ function MaintInner() {
     setRecurrence: persistRecurrence,
   } = useTasks(user?.uid ?? null);
   const [propId, setPropId] = useState('elm');
-  const [view, setView] = useState('home');
+  const [view, setView] = useState('schedule');
   const [theme, toggleTheme] = useTheme('maint');
   const [editing, setEditing] = useState<Task | 'new' | null>(null);
   const [recurring, setRecurring] = useState<Task | null>(null);
+  const [chat, setChat] = useState(false);
+  const [plan, setPlan] = useState(false);
   const toast = useToast();
 
   const prop = PROPERTIES.find((p) => p.id === propId)!;
@@ -885,6 +955,16 @@ function MaintInner() {
     persistDelete(id);
     toast('Task deleted', 'danger');
     setEditing(null);
+  };
+  const addFromChat = (data: ChatTaskResult) => {
+    persistTask({ ...data } as Parameters<typeof persistTask>[0]);
+    setChat(false);
+    toast('Schedule added · ' + data.name);
+  };
+  const addPlan = (list: Omit<Task, 'id' | 'done' | 'completedAt'>[]) => {
+    list.forEach((d) => persistTask({ ...d } as Parameters<typeof persistTask>[0]));
+    setPlan(false);
+    toast(list.length + (list.length === 1 ? ' schedule added' : ' schedules added'));
   };
   const setRecurrence = (id: string, rec: Recurrence, startDate: string, property: string) => {
     persistRecurrence(id, rec, startDate, property);
@@ -916,13 +996,7 @@ function MaintInner() {
         </Link>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '6px 12px 12px' }}>
-        <div className="eyebrow" style={{ padding: '10px 8px 7px' }}>Property</div>
-        <div role="listbox" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {PROPERTIES.map((p) => (
-            <PropBtn key={p.id} p={p} active={p.id === propId} onProp={setPropId} />
-          ))}
-        </div>
-        <div className="eyebrow" style={{ padding: '18px 8px 7px' }}>Views</div>
+        <div className="eyebrow" style={{ padding: '10px 8px 7px' }}>Views</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {VIEWS.map((vw) => (
             <MaintNav key={vw.id} v={vw} active={view === vw.id} onClick={setView} />
@@ -930,6 +1004,23 @@ function MaintInner() {
         </div>
       </div>
       <div style={{ padding: 12, borderTop: '1px solid var(--border-subtle)' }}>
+        <div className="eyebrow" style={{ padding: '2px 8px 7px' }}>Apps</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 8 }}>
+          {([
+            { name: 'Houses', to: '/houses', icon: 'building-2' },
+            { name: 'Rent Tracker', to: '/rent', icon: 'wallet' },
+            { name: 'Tenant Bridge', to: '/tenant-bridge', icon: 'messages-square' },
+          ] as const).map((a) => (
+            <Link key={a.to} to={a.to} style={{ display: 'flex', alignItems: 'center', gap: 11,
+              padding: '9px 12px', borderRadius: 'var(--radius-md)', textDecoration: 'none',
+              color: 'var(--text-body)', fontSize: 'var(--text-base)', fontWeight: 500 }}>
+              <Icon name={a.icon} size={18} style={{ color: 'var(--text-muted)' }} />
+              <span style={{ flex: 1 }}>{a.name}</span>
+              <Icon name="arrow-up-right" size={14} style={{ color: 'var(--text-faint)' }} />
+            </Link>
+          ))}
+        </div>
+        <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0 8px' }} />
         <button
           onClick={toggleTheme}
           style={{
@@ -1010,16 +1101,6 @@ function MaintInner() {
         <Spinner label="Loading tasks…" />
       ) : (
         <>
-      {view === 'home' && (
-        <HomeScreen
-          tasks={tasks}
-          prop={prop}
-          onToggle={toggleTask}
-          onEdit={setEditing}
-          onAdd={() => setEditing('new')}
-          onTogglePrep={togglePrep}
-        />
-      )}
       {view === 'prep' && (
         <PrepScreen
           tasks={tasks}
@@ -1032,9 +1113,17 @@ function MaintInner() {
         />
       )}
       {view === 'schedule' && (
-        <ScheduleScreen tasks={tasks} prop={prop} onToggle={toggleTask} onRecur={setRecurring} />
+        <ScheduleScreen
+          tasks={tasks}
+          onToggle={toggleTask}
+          onRecur={setRecurring}
+          onAdd={() => setEditing('new')}
+          onChatAdd={() => setChat(true)}
+          onPlanAdd={() => setPlan(true)}
+          onTogglePrep={togglePrep}
+        />
       )}
-      {view === 'history' && <HistoryScreen tasks={tasks} prop={prop} />}
+      {view === 'history' && <HistoryScreen tasks={tasks} />}
       {view === 'smart' && <SmartPlan tasks={tasks} prop={prop} />}
         </>
       )}
@@ -1053,6 +1142,22 @@ function MaintInner() {
           task={recurring}
           onClose={() => setRecurring(null)}
           onSave={setRecurrence}
+        />
+      )}
+      {chat && (
+        <MaintenanceChat
+          propId={propId}
+          propName={prop.name}
+          onClose={() => setChat(false)}
+          onComplete={addFromChat}
+        />
+      )}
+      {plan && (
+        <MaintenancePlanChat
+          propId={propId}
+          propName={prop.name}
+          onClose={() => setPlan(false)}
+          onComplete={addPlan}
         />
       )}
     </ResponsiveShell>

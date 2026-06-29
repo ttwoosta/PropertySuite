@@ -35,6 +35,7 @@ const TABS = [
   { id: 'queue', label: 'Queue', icon: 'calendar-clock' },
 ];
 const SUITE_LINKS = [
+  { label: 'Houses', icon: 'building-2', to: '/houses' },
   { label: 'Rent Tracker', icon: 'wallet', to: '/rent' },
   { label: 'Maintenance Scheduler', icon: 'calendar-check-2', to: '/maintenance' },
 ];
@@ -78,6 +79,27 @@ function TenantsTab({ onOpen }: { onOpen: (id: string) => void }) {
                 {mine.length} tenants
               </span>
             </div>
+            {mine.length === 0 ? (
+              <Card>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: 38, height: 38, borderRadius: 10, flex: 'none',
+                    background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
+                    {di('user-plus')}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-heading)' }}>No tenants yet</div>
+                    <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>Add rooms and tenant details for {p.name} in Houses.</div>
+                  </div>
+                  <Link to="/houses" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, textDecoration: 'none',
+                    fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-body)',
+                    padding: '8px 14px', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)',
+                    background: 'var(--surface-card)' }}>
+                    {di('building-2')} Update in Houses
+                  </Link>
+                </div>
+              </Card>
+            ) : (
             <div
               style={{
                 display: 'grid',
@@ -126,6 +148,7 @@ function TenantsTab({ onOpen }: { onOpen: (id: string) => void }) {
                 </Card>
               ))}
             </div>
+            )}
           </section>
         );
       })}

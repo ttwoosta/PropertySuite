@@ -64,6 +64,10 @@ export async function addHouse(uid: string, house: Omit<House, 'id'>): Promise<s
   return ref.id;
 }
 
+export async function updateHouse(uid: string, houseId: string, patch: { name: string; address: string }): Promise<void> {
+  await updateDoc(houseDoc(uid, houseId), patch);
+}
+
 export async function saveRoom(uid: string, houseId: string, rooms: Room[]): Promise<void> {
   await updateDoc(houseDoc(uid, houseId), { rooms });
 }

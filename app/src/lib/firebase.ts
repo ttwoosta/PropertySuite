@@ -38,18 +38,18 @@ if (firebaseConfigured) {
   authInstance = getAuth(app);
   storageInstance = getStorage(app);
 
-  const isLocalDevelopment =
-  typeof window !== 'undefined' && ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+  dbInstance = getFirestore(app);
 
-  if (isLocalDevelopment) {
-    dbInstance = getFirestore(app);
+  const useEmulator =
+    import.meta.env.VITE_USE_EMULATOR === 'true' ||
+    (typeof window !== 'undefined' &&
+      ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname) &&
+      import.meta.env.VITE_USE_EMULATOR !== 'false');
 
+  if (useEmulator) {
     connectFirestoreEmulator(dbInstance, '127.0.0.1', 9000);
     connectAuthEmulator(authInstance, 'http://127.0.0.1:9099', { disableWarnings: false });
     connectStorageEmulator(storageInstance, '127.0.0.1', 9199);
-  }
-  else {
-    dbInstance = getFirestore(app);
   }
 }
 

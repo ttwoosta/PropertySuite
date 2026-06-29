@@ -323,7 +323,7 @@ export function SaveCta({
       variant="primary"
       disabled={busy || disabled}
       onClick={onClick}
-      leadingIcon={busy ? <BtnSpin /> : icon ? <span style={{ display: 'inline-flex', width: 16, height: 16 }}>{di(icon)}</span> : undefined}
+      leadingIcon={<span key={String(busy)}>{busy ? <BtnSpin /> : icon ? <span style={{ display: 'inline-flex', width: 16, height: 16 }}>{di(icon)}</span> : null}</span>}
     >
       {busy ? busyLabel : children}
     </Button>

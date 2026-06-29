@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './lib/auth';
 import { Spinner } from './components/ui';
 import { Login } from './auth/Login';
 import { Launcher } from './apps/Launcher';
+import { HousesApp } from './apps/houses/HousesApp';
 import { MaintenanceApp } from './apps/maintenance/MaintenanceApp';
 import { ProfileApp } from './apps/profile/ProfileApp';
 import { RentApp } from './apps/rent/RentApp';
@@ -27,6 +28,7 @@ function AuthGate() {
   return (
     <Routes>
       <Route path="/" element={<Launcher />} />
+      <Route path="/houses" element={<HousesApp />} />
       <Route path="/maintenance" element={<MaintenanceApp />} />
       <Route path="/rent" element={<RentApp />} />
       <Route path="/tenant-bridge" element={<TenantApp />} />

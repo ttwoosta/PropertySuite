@@ -30,6 +30,8 @@ npm run test:e2e         # Playwright browser tests against dev server (auto-sta
 npm run test:all         # unit + integration + e2e
 ```
 
+To run a single test file: `npx vitest run <path/to/file.test.ts>` (add `--reporter=verbose` for detail).
+
 The test suite has four tiers:
 
 1. **Unit** (`src/lib/*Validation.test.ts`, `src/hooks/*.test.ts`) — pure functions, no mocks needed.
@@ -51,17 +53,20 @@ When `firebaseConfigured` is true and the hostname is `localhost`, the app auto-
 
 ## App architecture
 
-`App.tsx` is a thin auth shell. `AuthGate` renders one of three states: `resolving` → `<Spinner>`, `out` → `<Login>`, `in` → the four-route SPA.
+`App.tsx` is a thin auth shell. `AuthGate` renders one of three states: `resolving` → `<Spinner>`, `out` → `<Login>`, `in` → the SPA.
 
 | Route | Component |
 |---|---|
 | `/` | `Launcher` — app grid |
+| `/houses` | `HousesApp` — standalone property & room manager |
 | `/maintenance` | `MaintenanceApp` |
 | `/rent` | `RentApp` |
 | `/tenant-bridge` | `TenantApp` |
 | `/profile` | `ProfileApp` |
 
 Each sub-app lives under `src/apps/<name>/`. When Firebase is configured, Maintenance and Rent persist data to Firestore (see collection list above). In demo mode (no Firebase), they seed from static `SEED_*` exports in `data.ts` and mutate local React state.
+
+**HousesApp** (`src/apps/houses/HousesApp.tsx`) is a standalone property and room manager that shares the same data layer as the Rent app — it imports `useHouses()` from `src/apps/rent/data.ts` and calls the same `rentService.ts` functions. When a landlord has no properties, it renders `OnboardingPopup` for conversational property setup; the popup is also callable manually to add properties via chat.
 
 The Rent app is split across multiple files: `RentApp.tsx` (thin orchestration shell), `Dashboard.tsx` (overview), `Houses.tsx` (room list per house), `YearGrid.tsx` (monthly rent grid), `Expenses.tsx` (expense tracking), `Receipts.tsx` (receipt list), `charts.tsx` (income/expense charts), `entries.tsx` (entry wizard + upload/picker/viewer drawers), `forms.tsx` (drawer forms — `AddHouseDrawer`, `EditRoomDrawer`, `AddRentDrawer`).
 
@@ -81,9 +86,9 @@ Contains a **pre-compiled third-party bundle** (`ds_bundle.js`) — do not edit 
 - `ds.ts` — loads the bundle and exposes a typed handle to `window.MaintenanceSchedulerDesignSystem_02479c`
 - `components.tsx` — hand-written TypeScript prop types for the bundle's components (editor support only; no re-implementation)
 
-## Shared UI components (`src/components/ui.tsx`)
+## Shared UI components
 
-Port of the prototype's `ps-ui.jsx`. Key exports:
+**`src/components/ui.tsx`** — port of the prototype's `ps-ui.jsx`. Key exports:
 
 - `ResponsiveShell` — sidebar + topbar layout with a mobile slide-in drawer (`useDrawer()`)
 - `Modal` / `RightDrawer` — overlay surfaces (close on Escape and backdrop click)
@@ -91,12 +96,15 @@ Port of the prototype's `ps-ui.jsx`. Key exports:
 - `useTheme(appKey)` / `ThemeToggle` — per-app dark/light toggle, persisted to `localStorage`
 - `Segmented`, `SectionTitle`, `EmptyState`, `Spinner`, `Hamburger`
 
+**`src/components/OnboardingPopup.tsx`** — step-by-step conversational popup for adding a property via chat-style Q&A. Used by `HousesApp` on empty state and on demand.
+
 ## Icon system (`src/lib/icon.tsx`)
 
 All icons are kebab-case Lucide names resolved at runtime via `import * as Lucide from 'lucide-react'`. This matches the prototype's `data-lucide` attribute pattern at the cost of bundle size (intentional for this demo).
 
 - `<Icon name="kebab-name" size={n} />` — sized icon box
 - `di('name')` — fill-container icon node (drop-in for the prototype's `di()` helper)
+- `LucideIcon` — raw wrapper around a resolved Lucide component, for custom sizing/styling
 
 ## Styling
 

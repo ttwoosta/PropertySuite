@@ -333,11 +333,12 @@ export function RightDrawer({
           maxWidth: width,
           background: 'var(--surface-card)',
           borderLeft: '1px solid var(--border-default)',
-          boxShadow: 'var(--shadow-lg)',
+          boxShadow: open ? 'var(--shadow-lg)' : 'none',
           transform: open ? 'none' : 'translateX(100%)',
           transition: 'transform var(--dur-slow) var(--ease-out)',
           display: 'flex',
           flexDirection: 'column',
+          overflow: 'hidden',
         }}
       >
         <div

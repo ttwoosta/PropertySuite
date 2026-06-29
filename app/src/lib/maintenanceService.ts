@@ -68,7 +68,7 @@ export async function saveTaskFS(uid: string, data: TaskFormData): Promise<void>
     await updateDoc(taskDoc(uid, id), firestoreFields);
   } else {
     const newRef = doc(tasksCol(uid));
-    await setDoc(newRef, { ...firestoreFields, done: false, prep: [] });
+    await setDoc(newRef, { done: false, prep: [], ...firestoreFields });
   }
 }
 
